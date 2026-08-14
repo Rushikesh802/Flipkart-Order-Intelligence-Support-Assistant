@@ -143,3 +143,29 @@ CV results per param combo (mean ROC-AUC):
   {'clf__max_depth': None, 'clf__n_estimators': 100} -> 0.5843
   {'clf__max_depth': None, 'clf__n_estimators': 200} -> 0.5857
 ```
+
+## Feature Importance Analysis
+
+### Top 5 Most Important Features (Impurity-based / Gini)
+1. **`payment_method_COD` (0.1681)**: Orders paid via Cash on Delivery (COD) naturally drive higher return risk because the customer has no upfront financial commitment, making it much easier for them to change their mind, refuse the delivery, or experience buyer's remorse without immediate consequences.
+2. **`price_inr` (0.1358)**: The price of an item drives return risk because expensive purchases invite much higher customer scrutiny; if a high-ticket item fails to perfectly match expectations, the financial incentive to return it is much stronger than for a cheaper item.
+3. **`delivery_distance_km` (0.1016)**: Longer delivery distances might plausibly drive returns if they correlate with longer wait times (increasing the chance the customer no longer needs the item) or a higher likelihood of the package sustaining damage during transit.
+4. **`customer_tenure_days` (0.1005)**: Customer tenure relates to platform loyalty; newer customers may still be testing the service and more prone to returning items if they are dissatisfied, whereas long-tenured customers likely have established trust and more predictable buying habits.
+5. **`discount_pct` (0.0852)**: High discount percentages can encourage impulsive buying behavior; shoppers might purchase items they don't truly need just because the deal seems too good to pass up, ultimately leading to higher return rates once the item arrives.
+
+### Importance Ranking Comparison
+When we compute permutation importance on the held-out test split, we get a much clearer picture of which features actually generalize:
+
+| Rank | Gini (Impurity-based) Importance | Permutation Importance (Test Set) |
+|------|----------------------------------|-----------------------------------|
+| **1** | `payment_method_COD` (0.1681) | `payment_method_COD` (0.0650) |
+| **2** | `price_inr` (0.1358) | `price_inr` (0.0165) |
+| **3** | `delivery_distance_km` (0.1016) | `delivery_days` (0.0066) |
+| **4** | `customer_tenure_days` (0.1005) | `product_category_Apparel` (0.0062)|
+| **5** | `discount_pct` (0.0852) | `payment_method_Prepaid_Card` (0.0059)|
+
+### Key Takeaways
+When evaluated via permutation importance, **`delivery_distance_km`**, **`customer_tenure_days`**, and **`discount_pct`** lose almost all of their importance and drop completely out of the top 5, revealing that their high Gini importance was largely misleading. 
+
+**Why does this happen?**
+Impurity-based importance inherently overrates noisy continuous features (or high-cardinality categorical features) because it gives the tree more mathematical opportunities to make splits that reduce training impurity, even if those splits are just overfitting to random noise rather than capturing true predictive signal.
