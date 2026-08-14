@@ -169,3 +169,36 @@ When evaluated via permutation importance, **`delivery_distance_km`**, **`custom
 
 **Why does this happen?**
 Impurity-based importance inherently overrates noisy continuous features (or high-cardinality categorical features) because it gives the tree more mathematical opportunities to make splits that reduce training impurity, even if those splits are just overfitting to random noise rather than capturing true predictive signal.
+
+## Subgroup & Root-Cause Analysis
+
+### Overall Performance
+- **Overall Precision**: 0.3099
+- **Overall Recall**: 0.5415
+
+### By Product Category
+| Category | Precision | Recall | Support |
+|---|---|---|---|
+| Beauty | 0.3542 | 0.6538 | 113 |
+| Footwear | 0.3182 | 0.6087 | 208 |
+| Apparel | 0.3351 | 0.5766 | 396 |
+| Home | 0.2588 | 0.5500 | 226 |
+| **Electronics** | **0.2639** | **0.3519** | **257** |
+
+### By Payment Method
+| Payment Method | Precision | Recall | Support |
+|---|---|---|---|
+| COD | 0.3244 | 0.9125 | 503 |
+| **Wallet** | **0.1667** | **0.1579** | **134** |
+| **Prepaid_Card** | **0.0625** | **0.0196** | **275** |
+| **Prepaid_UPI** | **0.0000** | **0.0000** | **288** |
+
+### Underperforming Subgroups & Proposed Solutions
+
+**1. Prepaid Payment Methods (Prepaid_UPI, Prepaid_Card, Wallet)**
+The model performs abysmally on prepaid orders. It has effectively learned to use `payment_method_COD` as a crutch, predicting almost all prepaid orders as "no return". The recall drops to essentially zero for UPI and Card payments. 
+* **Concrete Next Step**: Implement **payment-method-specific decision thresholds**. Because the predicted probabilities for prepaid orders are structurally lower than for COD orders, a single global threshold of 0.5 completely misses them. By evaluating the PR curve specifically for the `Prepaid` slice and setting a lower, customized threshold for those transactions, we can recover recall for prepaid users without flooding the system with false-positive COD alerts.
+
+**2. Electronics Category**
+While not as drastic as the payment methods, the `Electronics` category performs meaningfully worse than the overall average, suffering a massive drop in recall (0.3519 compared to the 0.5415 average) along with below-average precision.
+* **Concrete Next Step**: Engineer an **`is_electronics * price_inr` interaction feature**. Electronics have extreme price variance (e.g., a ₹200 charging cable vs. a ₹80,000 laptop). The return risk drivers for high-end electronics are likely very different from apparel. explicitly passing this interaction term prevents the Random Forest from having to waste multiple depth levels trying to isolate the specific price-category relationship, allowing it to better segment high-risk electronics purchases.
