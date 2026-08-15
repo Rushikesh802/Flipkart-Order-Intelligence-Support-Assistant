@@ -6,7 +6,11 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 import os
 
-def get_dataloaders(data_dir='./data', batch_size=64, val_size=5000, random_seed=42):
+# Get the directory where data_loader.py is located
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+DEFAULT_DATA_DIR = os.path.join(BASE_DIR, 'data')
+
+def get_dataloaders(data_dir=DEFAULT_DATA_DIR, batch_size=64, val_size=5000, random_seed=42):
     """
     Downloads FashionMNIST, creates a stratified train/val split, and returns DataLoaders.
     The validation set will have `val_size` images (default 5000) stratified across classes.
@@ -54,7 +58,7 @@ def get_dataloaders(data_dir='./data', batch_size=64, val_size=5000, random_seed
 
 if __name__ == '__main__':
     # Ensure data directory exists
-    os.makedirs('./data', exist_ok=True)
+    os.makedirs(DEFAULT_DATA_DIR, exist_ok=True)
     
     print("Loading Fashion-MNIST dataset...")
     train_loader, val_loader, test_loader, classes = get_dataloaders()
