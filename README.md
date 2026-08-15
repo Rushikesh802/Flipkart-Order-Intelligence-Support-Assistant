@@ -202,3 +202,65 @@ The model performs abysmally on prepaid orders. It has effectively learned to us
 **2. Electronics Category**
 While not as drastic as the payment methods, the `Electronics` category performs meaningfully worse than the overall average, suffering a massive drop in recall (0.3519 compared to the 0.5415 average) along with below-average precision.
 * **Concrete Next Step**: Engineer an **`is_electronics * price_inr` interaction feature**. Electronics have extreme price variance (e.g., a ₹200 charging cable vs. a ₹80,000 laptop). The return risk drivers for high-end electronics are likely very different from apparel. explicitly passing this interaction term prevents the Random Forest from having to waste multiple depth levels trying to isolate the specific price-category relationship, allowing it to better segment high-risk electronics purchases.
+
+## Product Image Categoriser Model Report
+
+### Training Summary
+
+- **Device Used**: cpu
+- **Batch Size**: 64
+- **Optimizer**: Adam
+- **Learning Rate**: 0.001
+- **Epochs**: 10
+- **Feature Extraction Time**: ~1810 seconds
+- **Head Training Time**: ~17.5 seconds
+
+### Final Test Evaluation
+
+**Final Test Accuracy**: 88.87%
+
+#### 10x10 Confusion Matrix
+
+```text
+[[857   6  14  18   1   2  95   0   6   1]
+ [  3 973   2  17   1   1   3   0   0   0]
+ [ 14   0 847   6  53   0  79   0   1   0]
+ [ 28   7  17 853  28   1  65   0   1   0]
+ [  1   0  61  26 784   0 125   0   3   0]
+ [  0   0   0   0   0 979   0  15   1   5]
+ [127   0  39  26  67   1 733   0   6   1]
+ [  0   0   0   0   0  39   0 931   1  29]
+ [  4   0   0   2   0   4  10   0 979   1]
+ [  0   0   0   0   1  14   0  33   1 951]]
+```
+
+#### Per-class Precision & Recall
+
+```text
+              precision    recall  f1-score   support
+
+ T-shirt/top       0.83      0.86      0.84      1000
+     Trouser       0.99      0.97      0.98      1000
+    Pullover       0.86      0.85      0.86      1000
+       Dress       0.90      0.85      0.88      1000
+        Coat       0.84      0.78      0.81      1000
+      Sandal       0.94      0.98      0.96      1000
+       Shirt       0.66      0.73      0.69      1000
+     Sneaker       0.95      0.93      0.94      1000
+         Bag       0.98      0.98      0.98      1000
+  Ankle boot       0.96      0.95      0.96      1000
+
+    accuracy                           0.89     10000
+   macro avg       0.89      0.89      0.89     10000
+weighted avg       0.89      0.89      0.89     10000
+```
+
+#### Confusion Patterns Analysis
+
+Based on the confusion matrix, there are two primary class pairs that the model frequently mistakes for one another:
+
+**1. Shirts vs. T-shirts/tops (127 + 95 errors)**  
+The most common error the model makes is confusing a `Shirt` with a `T-shirt/top` (127 misclassifications) and vice-versa (95 misclassifications). Visually, shirts (button-downs or long-sleeves) and T-shirts share the exact same core silhouette: they both cover the torso and drape over the shoulders with central neck openings. At the low resolution of FashionMNIST (28x28 pixels), the primary distinguishing features of a collared shirt—such as the collar folds, a row of small buttons down the front, or slightly stiffer fabric cuffs—are severely degraded or entirely lost. Without these fine-grained details, the model only sees the general "T" shape of the torso and sleeves, making it incredibly difficult to mathematically distinguish a casual short-sleeve shirt from a basic T-shirt.
+
+**2. Coats vs. Shirts (125 + 67 errors)**  
+The second highest confusion is mistaking a `Coat` for a `Shirt` (125 times), alongside mistaking a `Shirt` for a `Coat` (67 times). Coats and shirts are frequently confused because they share nearly identical long-sleeve, full-torso bounding geometries. While a coat in real life might be thicker, longer, and heavier, within a normalized 28x28 grayscale pixel grid, both garments appear as large blocks of pixels extending down the body and out the arms. Features that typically separate a coat from a shirt—like heavy lapels, a prominent zipper, thick material texture, or the fact that a coat is worn open over other clothes—blur into a solid dark silhouette. When a shirt has a straight cut and long sleeves, its pixel distribution maps almost perfectly onto the shape of a light jacket or coat, leading the feature extractor to mistake one for the other.
