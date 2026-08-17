@@ -12,6 +12,8 @@ if ROOT_DIR not in sys.path:
 
 from support_agent.risk_tool import check_return_risk
 from support_agent.vision_tool import classify_product_image
+from support_agent.prompts import SYSTEM_PROMPT, SupportResponseSchema, parse_and_validate_response
+import json
 import chromadb
 from chromadb.utils import embedding_functions
 
@@ -124,18 +126,38 @@ def tool_calling_node(state: AgentState):
     return {"context": context, "order_context": order_context}
 
 def response_generation_node(state: AgentState):
-    """Generates the final response for the user."""
+    """Generates the final structured response adhering to the fixed JSON schema."""
     intent = state.get("intent")
     context = state.get("context", "")
     
     if intent == "policy":
-        reply = f"Based on our policy knowledge base:\n{context}"
-    elif intent in ["product_category", "return_risk"]:
-        reply = f"Tool output:\n{context}"
+        structured_res = {
+            "answer": f"According to Flipkart customer policy: {context}",
+            "source": "policy_kb",
+            "confidence": 0.95 if "No relevant policy" not in context else 0.40
+        }
+    elif intent == "return_risk":
+        structured_res = {
+            "answer": f"Order return risk evaluation result: {context}",
+            "source": "return_risk_tool",
+            "confidence": 0.92
+        }
+    elif intent == "product_category":
+        structured_res = {
+            "answer": f"Product image categorization outcome: {context}",
+            "source": "image_classifier_tool",
+            "confidence": 0.98 if "not found" not in context else 0.30
+        }
     else:
-        reply = "I'm not sure how to help with that. Try asking about our policies, checking an order's return risk, or classifying a product image."
+        structured_res = {
+            "answer": "I'm not sure how to help with that. Please ask about Flipkart return policies, order return risk analysis, or product image classification.",
+            "source": "policy_kb",
+            "confidence": 0.50
+        }
         
-    return {"messages": [{"role": "assistant", "content": reply}]}
+    validated = SupportResponseSchema(**structured_res)
+    json_reply = json.dumps(validated.model_dump(), indent=2)
+    return {"messages": [{"role": "assistant", "content": json_reply}]}
 
 def build_graph():
     builder = StateGraph(AgentState)

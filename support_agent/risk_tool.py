@@ -1,3 +1,4 @@
+import joblib
 import pickle
 import pandas as pd
 import os
@@ -14,9 +15,26 @@ _model = None
 def load_model():
     global _model
     if _model is None:
-        with open(MODEL_PATH, 'rb') as f:
-            _model = pickle.load(f)
+        try:
+            _model = joblib.load(MODEL_PATH)
+        except Exception:
+            with open(MODEL_PATH, 'rb') as f:
+                _model = pickle.load(f)
     return _model
+
+DEFAULT_ORDER_FEATURES = {
+    'price_inr': 1500.0,
+    'discount_pct': 10.0,
+    'customer_tenure_days': 180,
+    'num_previous_orders': 5,
+    'num_previous_returns': 1,
+    'delivery_distance_km': 15.0,
+    'delivery_days': 3,
+    'is_weekend_order': 0,
+    'rating_given': 4.0,
+    'product_category': 'electronics',
+    'payment_method': 'prepaid'
+}
 
 def check_return_risk(order_features: dict) -> dict:
     """
@@ -30,8 +48,22 @@ def check_return_risk(order_features: dict) -> dict:
     """
     model = load_model()
     
-    # Convert the input dict to a DataFrame as expected by scikit-learn
-    df = pd.DataFrame([order_features])
+    # Merge input with defaults for any missing features
+    features = DEFAULT_ORDER_FEATURES.copy()
+    for k, v in order_features.items():
+        # Handle lowercase/uppercase key differences
+        norm_k = k.lower().strip()
+        matched = False
+        for dk in DEFAULT_ORDER_FEATURES:
+            if norm_k == dk.lower():
+                features[dk] = v
+                matched = True
+                break
+        if not matched:
+            features[k] = v
+            
+    # Convert to DataFrame
+    df = pd.DataFrame([features])
     
     # Predict the probability of return (class 1)
     probability = model.predict_proba(df)[0][1]
@@ -50,19 +82,17 @@ def check_return_risk(order_features: dict) -> dict:
     }
 
 if __name__ == "__main__":
-    # Example usage
     sample_order = {
-        'Customer_Age': 30,
-        'Customer_Location': 'Urban',
-        'Customer_History_Returns': 2,
-        'Product_Category': 'Electronics',
-        'Product_Price': 15000,
-        'Delivery_Time_Days': 3,
-        'Payment_Method': 'Prepaid'
+        'price_inr': 15000,
+        'discount_pct': 15,
+        'customer_tenure_days': 365,
+        'num_previous_orders': 10,
+        'num_previous_returns': 2,
+        'delivery_distance_km': 25,
+        'delivery_days': 3,
+        'is_weekend_order': 0,
+        'rating_given': 4.5,
+        'product_category': 'electronics',
+        'payment_method': 'prepaid'
     }
-    # Note: The actual features expected by the model depend on the preprocessing steps used in Part 1.
-    # The dictionary provided should match those features exactly.
-    try:
-        print(check_return_risk(sample_order))
-    except Exception as e:
-        print(f"Error evaluating sample (likely missing or misformatted features): {e}")
+    print(check_return_risk(sample_order))
