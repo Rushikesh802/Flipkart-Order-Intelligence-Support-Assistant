@@ -14,8 +14,10 @@ All steps run locally with zero paid API keys required. Python 3.10+ is recommen
 git clone https://github.com/Rushikesh802/Flipkart-Order-Intelligence-Support-Assistant.git
 cd Flipkart-Order-Intelligence-Support-Assistant
 
-# 2. Install dependencies (using uv or pip)
-pip install -r pyproject.toml  # or: uv sync
+# 2. Install dependencies
+pip install -r requirements.txt
+# Alternatively, using uv or pip editable install:
+# uv sync  OR  pip install -e .
 ```
 
 ### Part 1: Tabular Return Risk Pipeline (Data, Baseline & Models)
@@ -180,17 +182,25 @@ threshold	F1	precision	recall
 0.90		0.0000	0.0000		0.0000
 ```
 
-**Threshold Selection & Trade-Off Comparison**:
-- **Default Threshold ($t = 0.50$)**: Recall = **0.5957 (59.57%)**, Precision = **0.3149 (31.49%)**, F1 = 0.4120
-- **High-Recall Operating Threshold ($t = 0.44$)**:
-  - **Recall**: **0.7437 (74.37%)** — an increase of **+14.80 percentage points** over default.
-- **High-Recall Operating Threshold ($t = 0.40$)**:
-  - **Recall**: **0.8448 (84.48%)** — an increase of **+24.91 percentage points** (well exceeding the required $\ge 15$ percentage points gain over default 0.5957).
-  - **Precision Drop**: Precision drops by **-4.90 percentage points** (from 0.3149 at $t=0.50$ to 0.2659 at $t=0.40$), while maintaining a strong F1 of 0.4045.
-- **F1-Maximising Threshold ($t = 0.52$)**: F1 = **0.4206**, Precision = 0.3424, Recall = 0.5451.
+**Threshold Sweep Analysis & Chosen Threshold Selection**:
+- **Default Baseline Threshold ($t = 0.50$)**:
+  - **Recall**: `0.5957` (59.57%)
+  - **Precision**: `0.3149` (31.49%)
+  - **F1-Score**: `0.4120`
+  - **ROC-AUC**: `0.6404`
 
-**Business trade-off of threshold adjustment:**  
-Lowering the threshold (e.g. to $t=0.40$) prioritizes sensitivity to return risk, capturing 84.48% of all returns (+24.91 pp gain in recall) in exchange for a modest 4.90 pp drop in precision. For an e-commerce platform, catching high-cost returns and potential fraud significantly outweighs the small operational overhead of reviewing additional flagged orders.
+- **Chosen High-Recall Operating Threshold ($t = 0.40$)**:
+  - **Recall**: `0.8448` (84.48%) &rarr; **+24.91 percentage points higher** than the default 0.50 threshold (well exceeding the required $\ge 15$ percentage points improvement).
+  - **Precision**: `0.2659` (26.59%) &rarr; drops by **-4.90 percentage points** compared to default (from 0.3149 to 0.2659).
+  - **F1-Score**: `0.4045` (retains strong discriminative utility while maximizing return capture).
+
+- **F1-Maximising Mathematical Threshold ($t^* = 0.52$)**:
+  - **F1-Score**: `0.4206` (peak mathematical F1)
+  - **Precision**: `0.3424` (34.24%)
+  - **Recall**: `0.5451` (54.51%)
+
+**Business Trade-off of the Chosen Operating Threshold ($t = 0.40$):**  
+Operating at the chosen threshold of $t = 0.40$ rather than default $0.50$ dramatically boosts recall from 59.57% to 84.48% (+24.91 pp), capturing nearly 85% of all returning orders. The trade-off is a minor precision reduction of 4.90 percentage points (more false alarms). In an e-commerce order intelligence context, the financial and logistical costs of unexpected returns (restocking, reverse shipping, damaged returns) vastly outweigh the small operational overhead of proactively flagging and inspecting high-risk orders.
 
 ## Random Forest Model Tuning
 
