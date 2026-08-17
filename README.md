@@ -286,5 +286,23 @@ All 10 test conversation transcripts are recorded and stored in [`transcripts/`]
 | **9** | **Multi-Turn**: Open Box Delivery RAG + Pullover Vision Tool | `thread_conv_09` | `policy_kb` + `image_classifier_tool` | Multi-turn policy retrieval and image classification (`01_pullover.png`) | [conversation_09_multi_turn_policy_and_vision.md](./transcripts/conversation_09_multi_turn_policy_and_vision.md) |
 | **10** | **Multi-Turn**: Coat Vision Tool (`06_coat.png`) + Plus SLA RAG | `thread_conv_10` | `image_classifier_tool` + `policy_kb` | Multi-turn image classification (`Coat`, 84.50%) + Plus delivery SLA | [conversation_10_coat_vision_and_plus_sla.md](./transcripts/conversation_10_coat_vision_and_plus_sla.md) |
 
+### RAG Retrieval Evaluation (Precision@3 & Recall@3)
+
+Evaluated across the 5 standard query/relevant-document pairs indexed in ChromaDB using `all-MiniLM-L6-v2`:
+
+| Query ID | Evaluation Query | Ground Truth Document(s) | Top-3 Retrieved Chunks (`doc_id`) | Precision@3 Arithmetic | Recall@3 Arithmetic |
+|:---|:---|:---:|:---:|:---:|:---:|
+| **q1** | *"Can I return a t-shirt if I took off the tags?"* | `['doc_1']` | `['doc_1', 'doc_1', 'doc_1']` | $\frac{3}{3} = \mathbf{1.0000}$ (100.0%) | $\frac{1}{1} = \mathbf{1.0000}$ (100.0%) |
+| **q2** | *"How long does it take to get my money back for a COD order?"* | `['doc_4']` | `['doc_4', 'doc_5', 'doc_4']` | $\frac{2}{3} = \mathbf{0.6667}$ (66.67%) | $\frac{1}{1} = \mathbf{1.0000}$ (100.0%) |
+| **q3** | *"Do I have to pay for shipping if I don't have Flipkart Plus?"* | `['doc_7']` | `['doc_6', 'doc_7', 'doc_8']` | $\frac{1}{3} = \mathbf{0.3333}$ (33.33%) | $\frac{1}{1} = \mathbf{1.0000}$ (100.0%) |
+| **q4** | *"What should I do if the delivery guy asks me to open my new phone box?"* | `['doc_12']` | `['doc_12', 'doc_12', 'doc_12']` | $\frac{3}{3} = \mathbf{1.0000}$ (100.0%) | $\frac{1}{1} = \mathbf{1.0000}$ (100.0%) |
+| **q5** | *"My pin code doesn't support reverse pickup, how do I send the item back?"* | `['doc_8']` | `['doc_8', 'doc_8', 'doc_5']` | $\frac{2}{3} = \mathbf{0.6667}$ (66.67%) | $\frac{1}{1} = \mathbf{1.0000}$ (100.0%) |
+
+#### Aggregate Evaluation Metrics:
+- **Mean Precision@3**:
+  $$\text{Mean Precision@3} = \frac{1.0000 + 0.6667 + 0.3333 + 1.0000 + 0.6667}{5} = \frac{3.6667}{5} = \mathbf{0.7333} \quad (73.33\%)$$
+- **Mean Recall@3**:
+  $$\text{Mean Recall@3} = \frac{1.0000 + 1.0000 + 1.0000 + 1.0000 + 1.0000}{5} = \frac{5.0000}{5} = \mathbf{1.0000} \quad (100.00\%)$$
+
 ---
-*Transcripts generated via `python support_agent/run_transcripts.py`.*
+*Transcripts and evaluation generated via `python support_agent/run_transcripts.py` and `python support_agent/evaluate_retrieval.py`.*
