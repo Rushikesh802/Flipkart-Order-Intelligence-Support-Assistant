@@ -385,8 +385,6 @@ The second highest confusion is mistaking a `Coat` for a `Shirt` (125 times), al
 
 ## LangGraph Support Agent & Guardrails Evaluation
 
-## LangGraph Support Agent & Guardrails Evaluation
-
 The support agent is built on **LangGraph** with conditional branching across four nodes:
 1. **Intent Routing Node (`route_intent`)**: Filters prompt injection attacks via regex guards and classifies user intent (`policy_rag`, `return_risk`, `product_vision`, `general`).
 2. **RAG Retrieval Node (`retrieve_policy`)**: Embeds query locally via `all-MiniLM-L6-v2`, queries ChromaDB index (12 policy documents, 36 chunks), and performs output groundedness verification against a distance threshold of 0.55.
@@ -394,17 +392,17 @@ The support agent is built on **LangGraph** with conditional branching across fo
 4. **Response Generation Node (`generate_response`)**: Synthesizes verified context into strict JSON adhering to `{"answer": str, "source": str, "confidence": float}`. Conversational state is maintained via `MemorySaver`.
 
 ```mermaid
-graph TD
-    A[User Query] --> B[Intent Routing Node]
-    B -->|Prompt Injection Detected| G[Safety Refusal Response]
-    B -->|Policy Inquiry| C[RAG Retrieval ChromaDB]
-    B -->|Order / Return Risk| D[Return Risk Tool]
-    B -->|Product Image| E[Vision Classifier Tool]
-    C -->|Distance <= 0.55| F[Deterministic Response Generator]
-    C -->|Distance > 0.55| H[Groundedness Refusal Response]
+flowchart TD
+    A["User Query"] --> B["Intent Routing Node"]
+    B -->|"Injection Detected"| G["Safety Refusal Response"]
+    B -->|"Policy Inquiry"| C["RAG Retrieval (ChromaDB)"]
+    B -->|"Order / Return Risk"| D["Return Risk Tool"]
+    B -->|"Product Image"| E["Vision Classifier Tool"]
+    C -->|"Distance <= 0.55"| F["Response Generator"]
+    C -->|"Distance > 0.55"| H["Groundedness Refusal"]
     D --> F
     E --> F
-    F --> I[Final Structured JSON Output]
+    F --> I["Structured JSON Output"]
     G --> I
     H --> I
 ```
