@@ -271,6 +271,51 @@ While not as drastic as the payment methods, the `Electronics` category performs
 
 ## Product Image Categoriser Model Report
 
+### Dataset & Splits
+- **Dataset**: Fashion-MNIST (downloaded directly via `torchvision.datasets.FashionMNIST` with `download=True` from the pinned official source, no substitutes).
+- **Exact Split Sizes**:
+  - **Train set**: 48,000 samples (80% of official 60k training partition)
+  - **Validation set**: 12,000 samples (20% of official 60k training partition)
+  - **Test set**: 10,000 samples (untouched official test partition evaluated only once at the end)
+
+### Architecture & Training Methodology
+- **Backbone**: Pretrained ResNet-18 (`torchvision.models.resnet18(weights=ResNet18_Weights.DEFAULT)`).
+- **Preprocessing**: Grayscale 1-channel images repeated across 3 channels, resized to 224x224, normalized via ImageNet standard mean `[0.485, 0.456, 0.406]` and std `[0.229, 0.224, 0.225]`.
+- **Feature Extraction vs. Fine-Tuning**:
+  - **Feature extraction alone was sufficient**: Freezing the ResNet-18 backbone and training only the custom linear classification head (`Linear(512, 10)`) achieved strong convergence.
+  - **Validation Accuracy**:
+    - Epoch 1 Validation Accuracy: **87.21%**
+    - Epoch 10 Validation Accuracy (Final Best): **89.14%**
+    - Because validation accuracy exceeded the 80% requirement by a wide margin with feature extraction alone, full backbone fine-tuning was not required.
+- **Artifact**: Saved as `models/product_classifier.pt` (loadable via `torch.load` / custom `ResNetHead` module, called directly by Part 3's `classify_product_image` tool).
+
+### Python Snippet to Load and Predict
+```python
+import torch
+import torchvision.transforms as transforms
+from PIL import Image
+
+# 1. Load model artifact
+model = torch.load("models/product_classifier.pt", map_location=torch.device("cpu"), weights_only=False)
+model.eval()
+
+# 2. Transform input image
+transform = transforms.Compose([
+    transforms.Grayscale(num_output_channels=3),
+    transforms.Resize((224, 224)),
+    transforms.ToTensor(),
+    transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225]),
+])
+img = Image.open("data/sample_images/00_ankle_boot.png")
+tensor = transform(img).unsqueeze(0)
+
+# 3. Predict class & confidence
+with torch.no_grad():
+    outputs = model(tensor)
+    probs = torch.softmax(outputs, dim=1)
+    conf, pred = torch.max(probs, dim=1)
+```
+
 ### Training Summary
 
 - **Device Used**: cpu
