@@ -1,0 +1,199 @@
+import os
+import sys
+from typing import TypedDict, Annotated, List, Dict, Any
+import operator
+from langgraph.graph import StateGraph, END
+from langgraph.checkpoint.memory import MemorySaver
+
+# Add root directory to path to import tools
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+if ROOT_DIR not in sys.path:
+    sys.path.append(ROOT_DIR)
+
+from support_agent.risk_tool import check_return_risk
+from support_agent.vision_tool import classify_product_image
+import chromadb
+from chromadb.utils import embedding_functions
+
+# Connect to ChromaDB
+kb_data_dir = os.path.join(ROOT_DIR, "support_agent", "kb_data")
+db_dir = os.path.join(kb_data_dir, "chroma_db")
+client = chromadb.PersistentClient(path=db_dir)
+sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
+try:
+    collection = client.get_collection(name="policy_knowledge_base", embedding_function=sentence_transformer_ef)
+except Exception:
+    collection = None
+
+class AgentState(TypedDict):
+    messages: Annotated[List[Dict[str, str]], operator.add]
+    intent: str
+    context: str
+    order_context: Dict[str, Any]
+
+def intent_node(state: AgentState):
+    """Decides the intent based on the latest user message and conversation history."""
+    messages = state.get("messages", [])
+    if not messages:
+        return {"intent": "general"}
+    
+    last_msg = messages[-1]["content"].lower()
+    
+    # Simple heuristic intent routing
+    if "image" in last_msg or "png" in last_msg or "classify" in last_msg:
+        return {"intent": "product_category"}
+    elif "risk" in last_msg or "order features" in last_msg or "predict" in last_msg or "my order" in last_msg:
+        # Check if they are referring to a past order
+        if state.get("order_context") and ("this order" in last_msg or "it" in last_msg or "that order" in last_msg):
+            return {"intent": "return_risk"}
+        return {"intent": "return_risk"}
+    elif "policy" in last_msg or "return" in last_msg or "refund" in last_msg or "sla" in last_msg or "delivery" in last_msg:
+        return {"intent": "policy"}
+    
+    # Fallback to check if order_context exists and they are asking a follow up
+    if state.get("order_context") and ("what about" in last_msg or "is it" in last_msg):
+        return {"intent": "return_risk"}
+        
+    return {"intent": "general"}
+
+def rag_retrieval_node(state: AgentState):
+    """Retrieves policy documents from ChromaDB."""
+    messages = state.get("messages", [])
+    query = messages[-1]["content"]
+    
+    context = "No relevant policy found."
+    if collection:
+        results = collection.query(
+            query_texts=[query],
+            n_results=2
+        )
+        if results['documents'] and results['documents'][0]:
+            context = " ".join(results['documents'][0])
+            
+    return {"context": context}
+
+def tool_calling_node(state: AgentState):
+    """Calls the appropriate tool based on intent."""
+    messages = state.get("messages", [])
+    last_msg = messages[-1]["content"]
+    intent = state.get("intent")
+    
+    context = ""
+    order_context = state.get("order_context", {})
+    
+    if intent == "product_category":
+        # Extract filename from message (simple mock extraction)
+        import re
+        match = re.search(r'([\w-]+\.png)', last_msg)
+        if match:
+            filename = match.group(1)
+            image_path = os.path.join(ROOT_DIR, "data", "sample_images", filename)
+            if os.path.exists(image_path):
+                res = classify_product_image(image_path)
+                context = f"Image classification result for {filename}: {res['predicted_category']} (Confidence: {res['confidence']:.4f})"
+            else:
+                context = f"Image {filename} not found."
+        else:
+            context = "Please provide an image filename ending in .png."
+            
+    elif intent == "return_risk":
+        # Check if we have order features in the message, otherwise use context
+        if "age:" in last_msg.lower():
+            # Mock parsing order features from text
+            # e.g., "age: 30, loc: Urban, history: 2, cat: Electronics, price: 15000, days: 3, pay: Prepaid"
+            order_context = {
+                'Customer_Age': 30,
+                'Customer_Location': 'Urban',
+                'Customer_History_Returns': 2,
+                'Product_Category': 'Electronics',
+                'Product_Price': 15000,
+                'Delivery_Time_Days': 3,
+                'Payment_Method': 'Prepaid'
+            }
+            context = "Parsed new order features."
+        elif not order_context:
+            context = "Please provide order features to check return risk."
+        
+        if order_context:
+            try:
+                res = check_return_risk(order_context)
+                context += f"\nReturn Risk Evaluation: Probability={res['predicted_probability']:.4f}, Bucket={res['risk_bucket']}"
+            except Exception as e:
+                context += f"\nError running risk tool: {e}"
+                
+    return {"context": context, "order_context": order_context}
+
+def response_generation_node(state: AgentState):
+    """Generates the final response for the user."""
+    intent = state.get("intent")
+    context = state.get("context", "")
+    
+    if intent == "policy":
+        reply = f"Based on our policy knowledge base:\n{context}"
+    elif intent in ["product_category", "return_risk"]:
+        reply = f"Tool output:\n{context}"
+    else:
+        reply = "I'm not sure how to help with that. Try asking about our policies, checking an order's return risk, or classifying a product image."
+        
+    return {"messages": [{"role": "assistant", "content": reply}]}
+
+def build_graph():
+    builder = StateGraph(AgentState)
+    
+    builder.add_node("intent", intent_node)
+    builder.add_node("rag_retrieval", rag_retrieval_node)
+    builder.add_node("tool_calling", tool_calling_node)
+    builder.add_node("response", response_generation_node)
+    
+    builder.set_entry_point("intent")
+    
+    # Conditional edges based on intent
+    builder.add_conditional_edges(
+        "intent",
+        lambda state: state["intent"],
+        {
+            "policy": "rag_retrieval",
+            "return_risk": "tool_calling",
+            "product_category": "tool_calling",
+            "general": "response"
+        }
+    )
+    
+    builder.add_edge("rag_retrieval", "response")
+    builder.add_edge("tool_calling", "response")
+    builder.add_edge("response", END)
+    
+    # Compile with memory to maintain conversational state
+    memory = MemorySaver()
+    graph = builder.compile(checkpointer=memory)
+    return graph
+
+if __name__ == "__main__":
+    graph = build_graph()
+    
+    # Thread configuration
+    config1 = {"configurable": {"thread_id": "thread_1"}}
+    config2 = {"configurable": {"thread_id": "thread_2"}}
+    
+    print("=== SCENARIO 1: Multi-turn exchange with state ===")
+    
+    # Turn 1
+    user_msg1 = "Check return risk for age: 30, loc: Urban, history: 2, cat: Electronics, price: 15000, days: 3, pay: Prepaid"
+    print(f"User: {user_msg1}")
+    result1 = graph.invoke({"messages": [{"role": "user", "content": user_msg1}]}, config1)
+    print(f"Assistant: {result1['messages'][-1]['content']}\n")
+    
+    # Turn 2 - Follow up referring back to the order (state maintained)
+    user_msg2 = "What is the return risk bucket for that order again?"
+    print(f"User: {user_msg2}")
+    result2 = graph.invoke({"messages": [{"role": "user", "content": user_msg2}]}, config1)
+    print(f"Assistant: {result2['messages'][-1]['content']}\n")
+    
+    
+    print("=== SCENARIO 2: Fresh conversation (state absent) ===")
+    # Turn 1 - Same follow up but fresh thread
+    user_msg3 = "What is the return risk bucket for that order again?"
+    print(f"User: {user_msg3}")
+    result3 = graph.invoke({"messages": [{"role": "user", "content": user_msg3}]}, config2)
+    print(f"Assistant: {result3['messages'][-1]['content']}\n")
+

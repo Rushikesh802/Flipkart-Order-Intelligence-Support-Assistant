@@ -264,3 +264,25 @@ The most common error the model makes is confusing a `Shirt` with a `T-shirt/top
 
 **2. Coats vs. Shirts (125 + 67 errors)**  
 The second highest confusion is mistaking a `Coat` for a `Shirt` (125 times), alongside mistaking a `Shirt` for a `Coat` (67 times). Coats and shirts are frequently confused because they share nearly identical long-sleeve, full-torso bounding geometries. While a coat in real life might be thicker, longer, and heavier, within a normalized 28x28 grayscale pixel grid, both garments appear as large blocks of pixels extending down the body and out the arms. Features that typically separate a coat from a shirt—like heavy lapels, a prominent zipper, thick material texture, or the fact that a coat is worn open over other clothes—blur into a solid dark silhouette. When a shirt has a straight cut and long sleeves, its pixel distribution maps almost perfectly onto the shape of a light jacket or coat, leading the feature extractor to mistake one for the other.
+
+## LangGraph Support Agent
+
+This section demonstrates a 4-node LangGraph execution with an intent node, a RAG-retrieval node, a tool-calling node, and a response-generation node. It employs conditional branching and short-term conversational state (`MemorySaver`).
+
+```text
+=== SCENARIO 1: Multi-turn exchange with state ===
+User: Check return risk for age: 30, loc: Urban, history: 2, cat: Electronics, price: 15000, days: 3, pay: Prepaid
+Assistant: Tool output:
+Parsed new order features.
+Error running risk tool: STACK_GLOBAL requires str
+
+User: What is the return risk bucket for that order again?
+Assistant: Tool output:
+
+Error running risk tool: STACK_GLOBAL requires str
+
+=== SCENARIO 2: Fresh conversation (state absent) ===
+User: What is the return risk bucket for that order again?
+Assistant: Tool output:
+Please provide order features to check return risk.
+```
