@@ -32,8 +32,9 @@ def main():
     print(f"\nBest threshold (t*_rf): {best_t:.2f} with F1: {best_f1:.4f}")
     
     # Save the pipeline
-    os.makedirs("../models", exist_ok=True)
-    model_path = "../models/return_risk_model.pkl"
+    models_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "models")
+    os.makedirs(models_dir, exist_ok=True)
+    model_path = os.path.join(models_dir, "return_risk_model.pkl")
     joblib.dump(pipe, model_path)
     print(f"Model saved to {model_path}")
 
