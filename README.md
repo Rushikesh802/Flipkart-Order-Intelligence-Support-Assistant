@@ -27,22 +27,29 @@ python return_risk_pipeline/generate_orders.py
 # Verify missingness, summary metrics, and category stats
 python return_risk_pipeline/verify_data.py
 
-# Train baseline, logistic regression, and tuned Random Forest; saves models/return_risk_pipeline.joblib
-python return_risk_pipeline/train_model.py
+# Run baseline and logistic regression with threshold sweep
+python return_risk_pipeline/baseline.py
+
+# Tune Random Forest with GridSearchCV & evaluate on test set
+python return_risk_pipeline/rf_tune.py
+
+# Train and save the tuned Random Forest model (saves models/return_risk_model.pkl)
+python return_risk_pipeline/rf_save.py
 ```
 
 ### Part 2: Product Image Categoriser (Fashion-MNIST & ResNet-18 Transfer Learning)
 To download Fashion-MNIST programmatically, extract ResNet-18 backbone features, train the classification head, evaluate test accuracy (~88.9%), and export the model artifact:
 ```bash
-# Train feature-extractor + custom classification head; saves models/fashion_resnet18.pt
+# Train feature-extractor + custom classification head; saves models/product_classifier.pt
 python product_image_categoriser/train_vision_model.py
 ```
 
 ### Part 3: LangGraph Support Agent & Guardrails Evaluation (Mock Mode by Default)
 The agent operates in a deterministic `MOCK_LLM` mode out of the box (requiring zero API keys or network access).
 ```bash
-# 1. Build policy documents and index chunks in ChromaDB with all-MiniLM-L6-v2 embeddings
-python support_agent/index_kb.py
+# 1. Build policy documents (12 docs) and embed chunks in ChromaDB with all-MiniLM-L6-v2 embeddings
+python support_agent/generate_kb.py
+python support_agent/embed_chunks.py
 
 # 2. Run retrieval benchmark (Precision@3 and Recall@3 evaluation)
 python support_agent/evaluate_retrieval.py
