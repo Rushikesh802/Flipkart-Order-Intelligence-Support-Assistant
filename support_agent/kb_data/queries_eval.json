@@ -1,0 +1,37 @@
+[
+    {
+        "query_id": "q1",
+        "query": "Can I return a t-shirt if I took off the tags?",
+        "relevant_doc_ids": [
+            "doc_1"
+        ]
+    },
+    {
+        "query_id": "q2",
+        "query": "How long does it take to get my money back for a COD order?",
+        "relevant_doc_ids": [
+            "doc_4"
+        ]
+    },
+    {
+        "query_id": "q3",
+        "query": "Do I have to pay for shipping if I don't have Flipkart Plus?",
+        "relevant_doc_ids": [
+            "doc_7"
+        ]
+    },
+    {
+        "query_id": "q4",
+        "query": "What should I do if the delivery guy asks me to open my new phone box?",
+        "relevant_doc_ids": [
+            "doc_12"
+        ]
+    },
+    {
+        "query_id": "q5",
+        "query": "My pin code doesn't support reverse pickup, how do I send the item back?",
+        "relevant_doc_ids": [
+            "doc_8"
+        ]
+    }
+]

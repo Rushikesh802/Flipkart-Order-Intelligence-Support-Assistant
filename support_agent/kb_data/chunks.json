@@ -1,0 +1,182 @@
+[
+    {
+        "chunk_id": "chunk_1",
+        "doc_id": "doc_1",
+        "text": "Apparel and footwear items can be returned within 14 days of delivery."
+    },
+    {
+        "chunk_id": "chunk_2",
+        "doc_id": "doc_1",
+        "text": "The items must be unused, unwashed, and have all original tags intact."
+    },
+    {
+        "chunk_id": "chunk_3",
+        "doc_id": "doc_1",
+        "text": "If the tags are missing, the return request will be automatically rejected."
+    },
+    {
+        "chunk_id": "chunk_4",
+        "doc_id": "doc_2",
+        "text": "Electronics such as smartphones and laptops have a 7-day return window from the date of delivery."
+    },
+    {
+        "chunk_id": "chunk_5",
+        "doc_id": "doc_2",
+        "text": "Returns are only accepted if the product is defective or dead on arrival."
+    },
+    {
+        "chunk_id": "chunk_6",
+        "doc_id": "doc_2",
+        "text": "Change of mind returns are not applicable for this category."
+    },
+    {
+        "chunk_id": "chunk_7",
+        "doc_id": "doc_3",
+        "text": "Home and furniture items can be returned within 10 days of delivery."
+    },
+    {
+        "chunk_id": "chunk_8",
+        "doc_id": "doc_3",
+        "text": "The product must be unassembled and in its original packaging."
+    },
+    {
+        "chunk_id": "chunk_9",
+        "doc_id": "doc_3",
+        "text": "A technician will inspect the item before the return is approved."
+    },
+    {
+        "chunk_id": "chunk_10",
+        "doc_id": "doc_4",
+        "text": "For Cash on Delivery (COD) orders, refunds will be initiated once the returned item reaches our warehouse."
+    },
+    {
+        "chunk_id": "chunk_11",
+        "doc_id": "doc_4",
+        "text": "The refund will be processed to the provided bank account within 3 to 5 business days."
+    },
+    {
+        "chunk_id": "chunk_12",
+        "doc_id": "doc_4",
+        "text": "Customers must ensure their bank details are updated in their profile."
+    },
+    {
+        "chunk_id": "chunk_13",
+        "doc_id": "doc_5",
+        "text": "For prepaid orders, the refund will be credited back to the original payment method."
+    },
+    {
+        "chunk_id": "chunk_14",
+        "doc_id": "doc_5",
+        "text": "This process usually takes 5 to 7 business days after the return is picked up."
+    },
+    {
+        "chunk_id": "chunk_15",
+        "doc_id": "doc_5",
+        "text": "Credit card refunds may take an additional billing cycle to reflect on your statement."
+    },
+    {
+        "chunk_id": "chunk_16",
+        "doc_id": "doc_6",
+        "text": "Flipkart Plus members are eligible for free next-day delivery on all F-Assured items."
+    },
+    {
+        "chunk_id": "chunk_17",
+        "doc_id": "doc_6",
+        "text": "This service is guaranteed across all major metropolitan cities."
+    },
+    {
+        "chunk_id": "chunk_18",
+        "doc_id": "doc_6",
+        "text": "If the SLA is breached, members will receive compensation in the form of SuperCoins."
+    },
+    {
+        "chunk_id": "chunk_19",
+        "doc_id": "doc_7",
+        "text": "Standard delivery for non-Plus members typically takes 3 to 5 business days depending on the pin code."
+    },
+    {
+        "chunk_id": "chunk_20",
+        "doc_id": "doc_7",
+        "text": "Shipping charges may apply for orders below 500 INR."
+    },
+    {
+        "chunk_id": "chunk_21",
+        "doc_id": "doc_7",
+        "text": "Delivery dates are estimates and can be affected by public holidays or unforeseen logistics delays."
+    },
+    {
+        "chunk_id": "chunk_22",
+        "doc_id": "doc_8",
+        "text": "Reverse pickup is available for most pin codes across India."
+    },
+    {
+        "chunk_id": "chunk_23",
+        "doc_id": "doc_8",
+        "text": "If a pin code is unserviceable for reverse pickup, the customer must self-ship the item to our designated warehouse."
+    },
+    {
+        "chunk_id": "chunk_24",
+        "doc_id": "doc_8",
+        "text": "Shipping costs for self-shipped returns will be reimbursed up to 100 INR."
+    },
+    {
+        "chunk_id": "chunk_25",
+        "doc_id": "doc_9",
+        "text": "If an item is missing from your order, you must raise a complaint within 48 hours of delivery."
+    },
+    {
+        "chunk_id": "chunk_26",
+        "doc_id": "doc_9",
+        "text": "A thorough investigation will be conducted involving our logistics partner."
+    },
+    {
+        "chunk_id": "chunk_27",
+        "doc_id": "doc_9",
+        "text": "We may require unboxing videos or images of the outer packaging to process your claim."
+    },
+    {
+        "chunk_id": "chunk_28",
+        "doc_id": "doc_10",
+        "text": "Damaged products must be reported immediately upon delivery with photographic evidence."
+    },
+    {
+        "chunk_id": "chunk_29",
+        "doc_id": "doc_10",
+        "text": "The outer box and all packaging materials must be retained for verification."
+    },
+    {
+        "chunk_id": "chunk_30",
+        "doc_id": "doc_10",
+        "text": "Replacements are subject to stock availability at the time of the claim."
+    },
+    {
+        "chunk_id": "chunk_31",
+        "doc_id": "doc_11",
+        "text": "Customers can opt for an exchange instead of a refund if the desired size or color is available."
+    },
+    {
+        "chunk_id": "chunk_32",
+        "doc_id": "doc_11",
+        "text": "Exchange requests must be placed within the applicable category return window."
+    },
+    {
+        "chunk_id": "chunk_33",
+        "doc_id": "doc_11",
+        "text": "A single item can only be exchanged once."
+    },
+    {
+        "chunk_id": "chunk_34",
+        "doc_id": "doc_12",
+        "text": "Open Box Delivery is mandatory for high-value electronics and appliances."
+    },
+    {
+        "chunk_id": "chunk_35",
+        "doc_id": "doc_12",
+        "text": "The delivery agent will open the package in front of you to verify the contents and physical condition."
+    },
+    {
+        "chunk_id": "chunk_36",
+        "doc_id": "doc_12",
+        "text": "If any damage or missing parts are found, you must reject the delivery immediately."
+    }
+]
