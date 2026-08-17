@@ -43,18 +43,31 @@ def generate_deterministic_response(
     """
     intent = (intent or "general").lower()
     
+    # 0. Blocked / Security Refusal
+    if intent in ("blocked", "refusal", "injection"):
+        return SupportResponseSchema(
+            answer=(
+                "I cannot fulfill this request as it violates safety guidelines. "
+                "I am Flipkart's support assistant and can only answer questions related to order intelligence, "
+                "return policies, return risk evaluation, and product categorization."
+            ),
+            source="policy_kb",
+            confidence=1.0
+        )
+
     # 1. Policy Knowledge Base Response Generation
     if intent in ("policy", "policy_kb"):
-        if not context or "no relevant policy found" in context.lower() or context.strip() == "":
+        # Groundedness Check: If context is empty, marked ungrounded, or no match found, strictly refuse to answer
+        if not context or "no relevant policy found" in context.lower() or "could not find" in context.lower() or "could not locate" in context.lower():
             answer = (
-                "I could not locate a specific policy covering your query in our knowledge base. "
-                "Generally, Flipkart offers a 7-day to 10-day return or replacement window on eligible items. "
-                "Please check your order details or contact customer care for item-specific guidelines."
+                "I could not locate an official Flipkart policy matching your inquiry in our verified knowledge base. "
+                "To ensure accuracy and prevent incorrect information, I cannot provide an unverified policy. "
+                "Please refer to the official Flipkart Help Centre or check your order details."
             )
-            confidence = 0.40
+            confidence = 0.0
         else:
             cleaned_context = context.strip().replace("\n", " ")
-            # Construct a clear, professional summary answer from retrieved KB chunks
+            # Construct a clear, professional summary grounded strictly in the retrieved KB text
             answer = (
                 f"Based on Flipkart's official policy: {cleaned_context} "
                 "You can initiate a return or replacement request directly from the 'My Orders' section."
