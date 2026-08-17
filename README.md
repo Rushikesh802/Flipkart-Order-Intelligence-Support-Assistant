@@ -1,5 +1,58 @@
 # Flipkart-Order-Intelligence-Support-Assistant
 
+> **End-to-End E-Commerce Intelligence & Support Assistant System**  
+> Combines Machine Learning (Part 1), Computer Vision Transfer Learning (Part 2), and a Guardrailed LangGraph Support Agent with Vector RAG & Tool Calling (Part 3).
+
+---
+
+## Quickstart: How to Run & Reproduce All Parts
+
+All steps run locally with zero paid API keys required. Python 3.10+ is recommended.
+
+```bash
+# 1. Clone the repository
+git clone https://github.com/Rushikesh802/Flipkart-Order-Intelligence-Support-Assistant.git
+cd Flipkart-Order-Intelligence-Support-Assistant
+
+# 2. Install dependencies (using uv or pip)
+pip install -r pyproject.toml  # or: uv sync
+```
+
+### Part 1: Tabular Return Risk Pipeline (Data, Baseline & Models)
+To regenerate the synthetic order dataset, verify data statistics, train & tune Logistic Regression / Random Forest models, and export the model artifact:
+```bash
+# Generate synthetic dataset (6,000 orders)
+python return_risk_pipeline/generate_orders.py
+
+# Verify missingness, summary metrics, and category stats
+python return_risk_pipeline/verify_data.py
+
+# Train baseline, logistic regression, and tuned Random Forest; saves models/return_risk_pipeline.joblib
+python return_risk_pipeline/train_model.py
+```
+
+### Part 2: Product Image Categoriser (Fashion-MNIST & ResNet-18 Transfer Learning)
+To download Fashion-MNIST programmatically, extract ResNet-18 backbone features, train the classification head, evaluate test accuracy (~88.9%), and export the model artifact:
+```bash
+# Train feature-extractor + custom classification head; saves models/fashion_resnet18.pt
+python product_image_categoriser/train_vision_model.py
+```
+
+### Part 3: LangGraph Support Agent & Guardrails Evaluation (Mock Mode by Default)
+The agent operates in a deterministic `MOCK_LLM` mode out of the box (requiring zero API keys or network access).
+```bash
+# 1. Build policy documents and index chunks in ChromaDB with all-MiniLM-L6-v2 embeddings
+python support_agent/index_kb.py
+
+# 2. Run retrieval benchmark (Precision@3 and Recall@3 evaluation)
+python support_agent/evaluate_retrieval.py
+
+# 3. Run and verify all 10 agent test conversations (saved to transcripts/)
+python support_agent/run_transcripts.py
+```
+
+---
+
 ## Data Verification Report
 
 ### Summary Metrics
@@ -31,28 +84,29 @@
 
 ### Missingness Pattern in `rating_given`
 
-The missingness in `rating_given` is **MNAR (Missing Not At Random)**.
+The missingness in `rating_given` is **MAR (Missing At Random)** conditional on the observed `payment_method` column.
 
-**Justification from the data-generation logic** (`generate_orders.py:32`):
+**Justification & Measured Evidence from the Data-Generation Logic** (`generate_orders.py:32`):
 ```python
 missing_mask = rng.random(N) < np.where(payment_method == "COD", 0.22, 0.06)
 rating_given[missing_mask] = np.nan
 ```
 
-The missingness probability directly depends on an observed column value — `payment_method` — not on the missing `rating_given` value itself, nor on a random draw independent of any column:
-- **COD orders** → 22% chance of `rating_given` being missing
-- **All prepaid methods** (Card, UPI, Wallet) → 6% chance of `rating_given` being missing
+The probability of `rating_given` being missing depends directly on an **observed** column (`payment_method`), and not on the unobserved missing `rating_given` value itself:
+- **COD orders**: 22.83% measured missing rate (571 / 2,501)
+- **Non-COD (Prepaid) orders**: ~6.09% average measured missing rate (Prepaid_Card: 6.31%, Prepaid_UPI: 5.66%, Wallet: 6.40%)
+- **Measured Missing-Rate Gap**: A ~16.74 percentage point gap exists between COD (22.83%) and non-COD (~6.09%) orders.
 
-This creates a systematic, value-dependent missingness pattern. The `verify_data.py` output confirms this exactly:| Payment Method | Missing Count | Missing % |
-|---------------|--------------|----------|
+| Payment Method | Missing Count | Missing % |
+|---|---|---|
 | COD | 571 / 2,501 | 22.83% |
 | Prepaid_Card | 92 / 1,457 | 6.31% |
 | Prepaid_UPI | 82 / 1,448 | 5.66% |
 | Wallet | 38 / 594 | 6.40% |
 
-**Why it's not MCAR:** The missingness rate is far from uniform — it differs drastically by payment method (22.8% vs ~6%), so it's not random with respect to observed data.
-
-**Why it's not MAR:** MAR requires that the missingness depends on other observed variables but not on the missing value itself. Here, the missingness depends on `payment_method`, which is an observed variable. By the strict textbook definition, this technically qualifies as MAR. However, the more precise classification is **MNAR** because the missingness mechanism is systematically tied to an observed characteristic that is itself correlated with the return outcome. COD users have both higher missingness *and* higher return rates (30.75% vs ~17%), meaning the missingness is confounded with the outcome variable's drivers. In practice, this means imputation or complete-case analysis will be biased unless the payment-method dependency is explicitly modeled.
+- **Why it is NOT MCAR (Missing Completely At Random)**: The missingness is not uniform across rows; there is a statistically significant measured dependency on `payment_method` (22.83% for COD vs ~6% for prepaid).
+- **Why it is MAR (Missing At Random)**: Conditioned on knowing `payment_method`, the missingness does not depend on the unobserved `rating_given` value itself.
+- **Why it is NOT MNAR (Missing Not At Random)**: The missingness mechanism does not depend on whether the customer would have given a high or low rating (the unobserved variable itself), but rather solely on the observed payment channel.
 
 ## Baseline Model Performance
 
@@ -60,8 +114,8 @@ This creates a systematic, value-dependent missingness pattern. The `verify_data
 - Accuracy: 0.7692  
 - F1-score (returned=1): 0.0000  
 
-**Why high accuracy is misleading:**  
-The DummyClassifier simply predicts the majority class ("no return") for every order, achieving 76.9% accuracy solely because non-returns dominate the dataset. This score is misleading as it reflects zero ability to identify actual returns—it catches zero true positives, yielding an F1-score of 0.0 for the returned=1 class. The failure mode is **class imbalance masking discriminative void**: accuracy rewards matching the majority label, not solving the business problem of flagging risky orders. Comparing performance to this baseline and using metrics aligned to the real business goal (like F1 on the minority class) are two of the five honest-evaluation rules this task emphasizes.
+**Why high accuracy is misleading (The Trap: High Accuracy, Zero Recall):**  
+The DummyClassifier simply predicts the majority class ("no return") for every order, achieving 76.92% accuracy solely because non-returns dominate the dataset. This is the classic **"high accuracy, zero recall" trap**: the baseline catches zero true positives, completely failing to identify actual returns (F1 = 0.0, Recall = 0.0 for class 1). In an e-commerce fraud/return risk context, high accuracy masks a completely useless model that fails to flag any risky orders.
 
 ## Logistic Regression with class_weight="balanced"
 
@@ -119,13 +173,17 @@ threshold	F1	precision	recall
 0.90		0.0000	0.0000		0.0000
 ```
 
-**Best threshold: 0.52**  
-- F1: 0.4206  
-- Precision: 0.3424  
-- Recall: 0.5451  
+**Threshold Selection & Trade-Off Comparison**:
+- **Default Threshold ($t = 0.50$)**: Recall = **0.5957 (59.57%)**, Precision = **0.3149 (31.49%)**, F1 = 0.4120
+- **High-Recall Operating Threshold ($t = 0.44$)**:
+  - **Recall**: **0.7437 (74.37%)** — an increase of **+14.80 percentage points** over default.
+- **High-Recall Operating Threshold ($t = 0.40$)**:
+  - **Recall**: **0.8448 (84.48%)** — an increase of **+24.91 percentage points** (well exceeding the required $\ge 15$ percentage points gain over default 0.5957).
+  - **Precision Drop**: Precision drops by **-4.90 percentage points** (from 0.3149 at $t=0.50$ to 0.2659 at $t=0.40$), while maintaining a strong F1 of 0.4045.
+- **F1-Maximising Threshold ($t = 0.52$)**: F1 = **0.4206**, Precision = 0.3424, Recall = 0.5451.
 
 **Business trade-off of threshold adjustment:**  
-Lowering the decision threshold from 0.50 to 0.52 increases the model’s sensitivity to flagging orders as return-risk. This gains recall (catches a higher fraction of true returns) at the expense of precision (more false alarms). In business terms, the model becomes more willing to incur the operational cost of reviewing extra orders to avoid the higher cost of missing an actual return—namely, replacement shipping, restocking, and potential customer dissatisfaction. Conversely, raising the threshold would reduce false alarms but miss more true returns, trading lower inspection effort for higher downstream loss. The optimal threshold depends on the relative unit costs of these two error types; at 0.52 the F1 score peaks, indicating a favorable balance given the current class distribution and misclassification costs implicit in the data.
+Lowering the threshold (e.g. to $t=0.40$) prioritizes sensitivity to return risk, capturing 84.48% of all returns (+24.91 pp gain in recall) in exchange for a modest 4.90 pp drop in precision. For an e-commerce platform, catching high-cost returns and potential fraud significantly outweighs the small operational overhead of reviewing additional flagged orders.
 
 ## Random Forest Model Tuning
 
@@ -143,6 +201,14 @@ CV results per param combo (mean ROC-AUC):
   {'clf__max_depth': None, 'clf__n_estimators': 100} -> 0.5843
   {'clf__max_depth': None, 'clf__n_estimators': 200} -> 0.5857
 ```
+
+**Overfitting Check**: The held-out test ROC-AUC (0.6214) is within 0.0028 of the 5-fold cross-validated ROC-AUC (0.6186), well within the 0.05 margin, confirming absence of severe overfitting.
+
+### Saved Model Artifact & $t^*_{\text{rf}}$ Threshold
+- The trained and tuned Random Forest pipeline is serialized to `models/return_risk_model.pkl`.
+- Re-running the threshold sweep on this Random Forest model's own `.predict_proba` over the test split yields the optimal F1-maximising threshold:
+  - **$t^*_{\text{rf}} = 0.44$** (achieving test set F1 = 0.4004).
+  - This saved model artifact and $t^*_{\text{rf}}$ threshold are what Part 3's `check_return_risk` tool directly loads and calls.
 
 ## Feature Importance Analysis
 
