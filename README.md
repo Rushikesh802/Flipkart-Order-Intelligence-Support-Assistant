@@ -378,7 +378,55 @@ The second highest confusion is mistaking a `Coat` for a `Shirt` (125 times), al
 
 ## LangGraph Support Agent & Guardrails Evaluation
 
-The support agent is built on **LangGraph** with conditional branching across four nodes: an **Intent Routing Node** with regex-based prompt-injection filtering, a **RAG Retrieval Node** with groundedness verification over ChromaDB, a **Tool Calling Node** integrating the Random Forest return-risk pipeline and PyTorch vision model, and a **Deterministic Response Generation Node** strictly adhering to the JSON schema `{"answer": str, "source": str, "confidence": float}`. Conversational state is maintained via `MemorySaver`.
+## LangGraph Support Agent & Guardrails Evaluation
+
+The support agent is built on **LangGraph** with conditional branching across four nodes:
+1. **Intent Routing Node (`route_intent`)**: Filters prompt injection attacks via regex guards and classifies user intent (`policy_rag`, `return_risk`, `product_vision`, `general`).
+2. **RAG Retrieval Node (`retrieve_policy`)**: Embeds query locally via `all-MiniLM-L6-v2`, queries ChromaDB index (12 policy documents, 36 chunks), and performs output groundedness verification against a distance threshold of 0.55.
+3. **Tool Calling Node (`call_tools`)**: Dynamically invokes the Random Forest `check_return_risk` tool or the PyTorch `classify_product_image` vision tool.
+4. **Response Generation Node (`generate_response`)**: Synthesizes verified context into strict JSON adhering to `{"answer": str, "source": str, "confidence": float}`. Conversational state is maintained via `MemorySaver`.
+
+```mermaid
+graph TD
+    A[User Query] --> B[Intent Routing Node]
+    B -->|Prompt Injection Detected| G[Safety Refusal Response]
+    B -->|Policy Inquiry| C[RAG Retrieval ChromaDB]
+    B -->|Order / Return Risk| D[Return Risk Tool]
+    B -->|Product Image| E[Vision Classifier Tool]
+    C -->|Distance <= 0.55| F[Deterministic Response Generator]
+    C -->|Distance > 0.55| H[Groundedness Refusal Response]
+    D --> F
+    E --> F
+    F --> I[Final Structured JSON Output]
+    G --> I
+    H --> I
+```
+
+### System Prompt & 4S Principles Annotation
+The system prompt is explicitly constructed and annotated against each of the **4S Principles** plus **Role Prompting**:
+- **Role Prompting**: *"You are Flipkart's Order Intelligence & Support Assistant, an AI expert dedicated to answering customer order inquiries, explaining return/replacement policies, evaluating return risk probabilities, and verifying product categories from images."* Sets clear domain authority.
+- **1. Specific**: Requires the model to answer exclusively from provided retrieved context or tool results, avoiding vague or hallucinated policy statements.
+- **2. Short**: Enforces concise, direct answers and prohibits filler phrasing or excessive apologies.
+- **3. Surround**: Enforces context bounding — all customer answers must be wrapped within verified tool/RAG inputs.
+- **4. Single**: Dedicates each invocation to executing one unified goal: classify intent, ground context, and format strict JSON.
+
+### Few-Shot Intent Classification Driving Transcripts
+The system prompt incorporates few-shot intent examples that demonstrably drive correct node routing:
+1. **Policy Inquiry Example &rarr; Conversation 1 & 2**: Queries regarding clothing return rules and COD timelines match the few-shot policy pattern, routing directly to `policy_kb` RAG retrieval.
+2. **Return Risk Example &rarr; Conversation 3 & 5**: Queries supplying order characteristics (e.g. price, tenure, payment method) match the few-shot risk pattern, routing to `check_return_risk`.
+3. **Vision Classifier Example &rarr; Conversation 4 & 9 & 10**: Queries referencing product image paths match the image classifier pattern, routing to `classify_product_image`.
+
+### Risk Bucket Cut Points Anchored to $t^*_{\text{rf}}$
+`check_return_risk` anchors its categorical risk buckets directly to the F1-maximising threshold **$t^*_{\text{rf}} = 0.44$** computed on the saved Random Forest model's own `.predict_proba` test distribution:
+- **Low Risk**: $\text{probability} < 0.44$ ($< t^*_{\text{rf}}$)
+- **Medium Risk**: $0.44 \le \text{probability} < 0.59$ (between $t^*_{\text{rf}}$ and $t^*_{\text{rf}} + 0.15$)
+- **High Risk**: $\text{probability} \ge 0.59$ ($\ge t^*_{\text{rf}} + 0.15$)
+
+*Justification*: The risk buckets use cut points of **0.44** (Low/Medium) and **0.59** (Medium/High), which are mathematically anchored to the tuned Random Forest's empirical F1-maximising threshold of **$t^*_{\text{rf}} = 0.44$**, guaranteeing that any order with an above-optimal probability of return is elevated out of the Low Risk category.
+
+### Deterministic MOCK_LLM Mode & Optional Live-LLM
+- **Default Mode**: The entire system and all transcripts run under deterministic `MOCK_LLM` mode, requiring **zero API keys and zero network calls**.
+- **Optional Live-LLM**: If an external LLM key is omitted or unset (`USE_LIVE_LLM=0`), the system executes 100% of acceptance criteria offline.
 
 ### Verified Test Conversation Transcripts
 
