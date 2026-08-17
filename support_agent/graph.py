@@ -13,6 +13,7 @@ if ROOT_DIR not in sys.path:
 from support_agent.risk_tool import check_return_risk
 from support_agent.vision_tool import classify_product_image
 from support_agent.prompts import SYSTEM_PROMPT, SupportResponseSchema, parse_and_validate_response
+from support_agent.mock_llm import generate_deterministic_response, get_deterministic_json_response, MOCK_LLM_ENABLED
 import json
 import chromadb
 from chromadb.utils import embedding_functions
@@ -126,36 +127,21 @@ def tool_calling_node(state: AgentState):
     return {"context": context, "order_context": order_context}
 
 def response_generation_node(state: AgentState):
-    """Generates the final structured response adhering to the fixed JSON schema."""
-    intent = state.get("intent")
+    """Generates the final structured response adhering to the fixed JSON schema using MOCK_LLM deterministic mode."""
+    intent = state.get("intent", "general")
     context = state.get("context", "")
+    order_context = state.get("order_context", {})
+    messages = state.get("messages", [])
+    query = messages[-1]["content"] if messages else ""
     
-    if intent == "policy":
-        structured_res = {
-            "answer": f"According to Flipkart customer policy: {context}",
-            "source": "policy_kb",
-            "confidence": 0.95 if "No relevant policy" not in context else 0.40
-        }
-    elif intent == "return_risk":
-        structured_res = {
-            "answer": f"Order return risk evaluation result: {context}",
-            "source": "return_risk_tool",
-            "confidence": 0.92
-        }
-    elif intent == "product_category":
-        structured_res = {
-            "answer": f"Product image categorization outcome: {context}",
-            "source": "image_classifier_tool",
-            "confidence": 0.98 if "not found" not in context else 0.30
-        }
-    else:
-        structured_res = {
-            "answer": "I'm not sure how to help with that. Please ask about Flipkart return policies, order return risk analysis, or product image classification.",
-            "source": "policy_kb",
-            "confidence": 0.50
-        }
-        
-    validated = SupportResponseSchema(**structured_res)
+    # Generate deterministic structured response
+    validated = generate_deterministic_response(
+        intent=intent,
+        query=query,
+        context=context,
+        order_context=order_context
+    )
+    
     json_reply = json.dumps(validated.model_dump(), indent=2)
     return {"messages": [{"role": "assistant", "content": json_reply}]}
 
