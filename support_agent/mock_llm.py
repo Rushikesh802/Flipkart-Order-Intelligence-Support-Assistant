@@ -59,11 +59,14 @@ def generate_deterministic_response(
     if intent in ("policy", "policy_kb"):
         # Groundedness Check: If context is empty, marked ungrounded, or no match found, strictly refuse to answer
         if not context or "no relevant policy found" in context.lower() or "could not find" in context.lower() or "could not locate" in context.lower():
-            answer = (
-                "I could not locate an official Flipkart policy matching your inquiry in our verified knowledge base. "
-                "To ensure accuracy and prevent incorrect information, I cannot provide an unverified policy. "
-                "Please refer to the official Flipkart Help Centre or check your order details."
-            )
+            if context and ("groundedness verification" in context.lower() or "similarity distance" in context.lower()):
+                answer = context.strip()
+            else:
+                answer = (
+                    "I could not locate an official Flipkart policy matching your inquiry in our verified knowledge base. "
+                    "To ensure accuracy and prevent incorrect information, I cannot provide an unverified policy. "
+                    "Please refer to the official Flipkart Help Centre or check your order details."
+                )
             confidence = 0.0
         else:
             cleaned_context = context.strip().replace("\n", " ")

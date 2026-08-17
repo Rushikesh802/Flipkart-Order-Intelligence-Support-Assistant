@@ -126,19 +126,47 @@ def tool_calling_node(state: AgentState):
             
     elif intent == "return_risk":
         # Check if we have order features in the message, otherwise use context
-        if "age:" in last_msg.lower():
-            # Mock parsing order features from text
-            # e.g., "age: 30, loc: Urban, history: 2, cat: Electronics, price: 15000, days: 3, pay: Prepaid"
-            order_context = {
-                'Customer_Age': 30,
-                'Customer_Location': 'Urban',
-                'Customer_History_Returns': 2,
-                'Product_Category': 'Electronics',
-                'Product_Price': 15000,
-                'Delivery_Time_Days': 3,
-                'Payment_Method': 'Prepaid'
-            }
-            context = "Parsed new order features."
+        import re
+        kv_matches = re.findall(r'([a-zA-Z_]+)\s*[:=]\s*([^\s,;]+)', last_msg)
+        if kv_matches:
+            new_features = {}
+            for k, v in kv_matches:
+                k_lower = k.lower()
+                v_clean = v.strip()
+                if k_lower in ('price', 'price_inr', 'product_price'):
+                    try: new_features['price_inr'] = float(v_clean)
+                    except: pass
+                elif k_lower in ('discount', 'discount_pct'):
+                    try: new_features['discount_pct'] = float(v_clean)
+                    except: pass
+                elif k_lower in ('tenure', 'customer_tenure_days'):
+                    try: new_features['customer_tenure_days'] = float(v_clean)
+                    except: pass
+                elif k_lower in ('orders', 'num_previous_orders', 'previous_orders'):
+                    try: new_features['num_previous_orders'] = int(v_clean)
+                    except: pass
+                elif k_lower in ('returns', 'history', 'num_previous_returns', 'previous_returns', 'customer_history_returns'):
+                    try: new_features['num_previous_returns'] = int(v_clean)
+                    except: pass
+                elif k_lower in ('distance', 'delivery_distance_km'):
+                    try: new_features['delivery_distance_km'] = float(v_clean)
+                    except: pass
+                elif k_lower in ('days', 'delivery_days', 'delivery_time_days'):
+                    try: new_features['delivery_days'] = int(v_clean)
+                    except: pass
+                elif k_lower in ('weekend', 'is_weekend_order'):
+                    try: new_features['is_weekend_order'] = int(v_clean)
+                    except: pass
+                elif k_lower in ('rating', 'rating_given'):
+                    try: new_features['rating_given'] = float(v_clean)
+                    except: pass
+                elif k_lower in ('cat', 'category', 'product_category'):
+                    new_features['product_category'] = v_clean.capitalize()
+                elif k_lower in ('pay', 'payment', 'payment_method'):
+                    new_features['payment_method'] = v_clean
+            if new_features:
+                order_context = new_features
+                context = "Parsed new order features."
         elif not order_context:
             context = "Please provide order features to check return risk."
         

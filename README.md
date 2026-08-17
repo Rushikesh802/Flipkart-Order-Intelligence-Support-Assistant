@@ -265,24 +265,26 @@ The most common error the model makes is confusing a `Shirt` with a `T-shirt/top
 **2. Coats vs. Shirts (125 + 67 errors)**  
 The second highest confusion is mistaking a `Coat` for a `Shirt` (125 times), alongside mistaking a `Shirt` for a `Coat` (67 times). Coats and shirts are frequently confused because they share nearly identical long-sleeve, full-torso bounding geometries. While a coat in real life might be thicker, longer, and heavier, within a normalized 28x28 grayscale pixel grid, both garments appear as large blocks of pixels extending down the body and out the arms. Features that typically separate a coat from a shirt—like heavy lapels, a prominent zipper, thick material texture, or the fact that a coat is worn open over other clothes—blur into a solid dark silhouette. When a shirt has a straight cut and long sleeves, its pixel distribution maps almost perfectly onto the shape of a light jacket or coat, leading the feature extractor to mistake one for the other.
 
-## LangGraph Support Agent
+## LangGraph Support Agent & Guardrails Evaluation
 
-This section demonstrates a 4-node LangGraph execution with an intent node, a RAG-retrieval node, a tool-calling node, and a response-generation node. It employs conditional branching and short-term conversational state (`MemorySaver`).
+The support agent is built on **LangGraph** with conditional branching across four nodes: an **Intent Routing Node** with regex-based prompt-injection filtering, a **RAG Retrieval Node** with groundedness verification over ChromaDB, a **Tool Calling Node** integrating the Random Forest return-risk pipeline and PyTorch vision model, and a **Deterministic Response Generation Node** strictly adhering to the JSON schema `{"answer": str, "source": str, "confidence": float}`. Conversational state is maintained via `MemorySaver`.
 
-```text
-=== SCENARIO 1: Multi-turn exchange with state ===
-User: Check return risk for age: 30, loc: Urban, history: 2, cat: Electronics, price: 15000, days: 3, pay: Prepaid
-Assistant: Tool output:
-Parsed new order features.
-Error running risk tool: STACK_GLOBAL requires str
+### Verified Test Conversation Transcripts
 
-User: What is the return risk bucket for that order again?
-Assistant: Tool output:
+All 10 test conversation transcripts are recorded and stored in [`transcripts/`](./transcripts/):
 
-Error running risk tool: STACK_GLOBAL requires str
+| # | Scenario & Requirement | Thread ID | Source Tool / Node | Groundedness / Guardrail Status | Transcript Link |
+|---|------------------------|-----------|-------------------|---------------------------------|-----------------|
+| **1** | **(a) Policy RAG**: Apparel & Footwear Return Conditions | `thread_conv_01` | `policy_kb` | Distance = 0.4135 (< 0.55 Threshold) &rarr; **PASSED** | [conversation_01_policy_rag_apparel.md](./transcripts/conversation_01_policy_rag_apparel.md) |
+| **2** | **(a) Policy RAG**: Cash on Delivery (COD) Refund Timeline | `thread_conv_02` | `policy_kb` | Distance = 0.3601 (< 0.55 Threshold) &rarr; **PASSED** | [conversation_02_policy_rag_refund.md](./transcripts/conversation_02_policy_rag_refund.md) |
+| **3** | **(b) Return Risk**: Realistic Order Features Prediction | `thread_conv_03` | `return_risk_tool` | Probability = 58.22%, Bucket = `Medium` | [conversation_03_return_risk_evaluation.md](./transcripts/conversation_03_return_risk_evaluation.md) |
+| **4** | **(c) Vision Tool**: Real Image Classification (`00_ankle_boot.png`) | `thread_conv_04` | `image_classifier_tool` | Predicted = `Ankle boot` (Confidence = 98.87%) | [conversation_04_product_category_vision.md](./transcripts/conversation_04_product_category_vision.md) |
+| **5** | **(d) Multi-Turn State**: State Carried Across Turns | `thread_conv_05` | `return_risk_tool` | MemorySaver checkpoint holds order context in Turn 2 | [conversation_05_multi_turn_state_carried.md](./transcripts/conversation_05_multi_turn_state_carried.md) |
+| **6** | **(d) Fresh Thread**: State Correctly Absent | `thread_conv_06` | `return_risk_tool` | No state found; agent asks for order attributes | [conversation_06_fresh_conversation_state_absent.md](./transcripts/conversation_06_fresh_conversation_state_absent.md) |
+| **7** | **(e) Input Guardrail**: Prompt-Injection Attack Deflected | `thread_conv_07` | `policy_kb` | `Blocked pattern matched` &rarr; Safety Refusal (Conf = 1.0) | [conversation_07_prompt_injection_blocked.md](./transcripts/conversation_07_prompt_injection_blocked.md) |
+| **8** | **(f) Output Guardrail**: Ungrounded Policy Refusal with Verifiable Distance | `thread_conv_08` | `policy_kb` | Distance = 0.6171 (> 0.55 Threshold) &rarr; **REFUSED (Conf = 0.0)** | [conversation_08_ungrounded_policy_refusal.md](./transcripts/conversation_08_ungrounded_policy_refusal.md) |
+| **9** | **Multi-Turn**: Open Box Delivery RAG + Pullover Vision Tool | `thread_conv_09` | `policy_kb` + `image_classifier_tool` | Multi-turn policy retrieval and image classification (`01_pullover.png`) | [conversation_09_multi_turn_policy_and_vision.md](./transcripts/conversation_09_multi_turn_policy_and_vision.md) |
+| **10** | **Multi-Turn**: Coat Vision Tool (`06_coat.png`) + Plus SLA RAG | `thread_conv_10` | `image_classifier_tool` + `policy_kb` | Multi-turn image classification (`Coat`, 84.50%) + Plus delivery SLA | [conversation_10_coat_vision_and_plus_sla.md](./transcripts/conversation_10_coat_vision_and_plus_sla.md) |
 
-=== SCENARIO 2: Fresh conversation (state absent) ===
-User: What is the return risk bucket for that order again?
-Assistant: Tool output:
-Please provide order features to check return risk.
-```
+---
+*Transcripts generated via `python support_agent/run_transcripts.py`.*

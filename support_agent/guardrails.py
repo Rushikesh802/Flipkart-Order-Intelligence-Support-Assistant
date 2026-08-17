@@ -101,8 +101,10 @@ def verify_policy_groundedness(
         # If best match distance exceeds threshold, it's irrelevant / ungrounded
         if best_distance > max_distance_threshold:
             refusal_msg = (
-                "I could not find an official Flipkart policy sufficiently matching your inquiry in our knowledge base. "
-                "To prevent providing inaccurate information, please check the official Flipkart app or contact customer support."
+                f"I could not find an official Flipkart policy sufficiently matching your inquiry in our verified knowledge base. "
+                f"[Groundedness Verification: retrieved chunk similarity distance = {best_distance:.4f}, max acceptable threshold = {max_distance_threshold:.2f}]. "
+                f"To prevent hallucinating unverified policies, this request is refused. "
+                f"Please refer to the official Flipkart Help Centre or check your order details."
             )
             return False, refusal_msg, 0.0
 
