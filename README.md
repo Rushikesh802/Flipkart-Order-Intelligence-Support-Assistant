@@ -1,64 +1,213 @@
-# Flipkart-Order-Intelligence-Support-Assistant
+# Flipkart Order Intelligence & Support Assistant
 
 > **End-to-End E-Commerce Intelligence & Support Assistant System**  
-> Combines Machine Learning (Part 1), Computer Vision Transfer Learning (Part 2), and a Guardrailed LangGraph Support Agent with Vector RAG & Tool Calling (Part 3).
+> Combines Tabular Machine Learning (Part 1), Computer Vision Transfer Learning (Part 2), and a Guardrailed LangGraph Support Agent with Vector RAG & Tool Calling (Part 3).
 
 ---
 
-## Quickstart: How to Run & Reproduce All Parts
+## Table of Contents
+- [System Architecture & Overview](#system-architecture--overview)
+- [Repository Structure](#repository-structure)
+- [Quickstart: Run & Reproduce All Parts (with `uv` or `pip`)](#quickstart-run--reproduce-all-parts-with-uv-or-pip)
+  - [Part 1: Tabular Return Risk Pipeline](#part-1-tabular-return-risk-pipeline-commands)
+  - [Part 2: Product Image Categoriser](#part-2-product-image-categoriser-commands)
+  - [Part 3: LangGraph Support Agent & Guardrails](#part-3-langgraph-support-agent--guardrails-commands)
+- [Part 1: Tabular Return Risk Pipeline Deep-Dive](#part-1-tabular-return-risk-pipeline-deep-dive)
+  - [Data Verification Report](#data-verification-report)
+  - [Missingness Analysis in `rating_given` (MAR Mechanism)](#missingness-pattern-in-rating_given)
+  - [Baseline Model Performance ("High Accuracy, Zero Recall" Trap)](#baseline-model-performance)
+  - [Logistic Regression & Decision Threshold Optimization](#logistic-regression-with-class_weightbalanced)
+  - [Random Forest Hyperparameter Tuning](#random-forest-model-tuning)
+  - [Feature Importance Analysis (Gini vs Permutation)](#feature-importance-analysis)
+  - [Subgroup Performance & Root Cause Analysis](#subgroup--root-cause-analysis)
+- [Part 2: Product Image Categoriser Deep-Dive](#product-image-categoriser-model-report)
+  - [Dataset & Stratified Splits](#dataset--splits)
+  - [ResNet-18 Backbone & Feature Extraction Speedup](#architecture--training-methodology)
+  - [Evaluation Metrics, Confusion Matrix & Per-Class Report](#final-test-evaluation)
+  - [Confusion Patterns Analysis](#confusion-patterns-analysis)
+  - [Python Snippet to Load and Predict](#python-snippet-to-load-and-predict)
+- [Part 3: LangGraph Support Agent & Guardrails Deep-Dive](#langgraph-support-agent--guardrails-evaluation)
+  - [LangGraph Architecture & Node Workflow](#langgraph-support-agent--guardrails-evaluation)
+  - [System Prompt & 4S Principles Formulation](#system-prompt--4s-principles-annotation)
+  - [Risk Bucketing Mathematically Anchored to $t^*_{\text{rf}}$](#risk-bucket-cut-points-anchored-to-t_textrf)
+  - [Guardrails Implementation (Input Injection & Output Groundedness)](#deterministic-mock_llm-mode--optional-live-llm)
+  - [Recorded Test Conversation Transcripts (10/10 Verified)](#verified-test-conversation-transcripts)
+  - [RAG Retrieval Benchmark (Precision@3 & Recall@3)](#rag-retrieval-evaluation-precision3--recall3)
 
-All steps run locally with zero paid API keys required. Python 3.10+ is recommended.
+---
 
+## System Architecture & Overview
+
+This system provides a multi-modal e-commerce intelligence platform built for Flipkart customer support:
+1. **Order Return Risk Engine**: Predicts the likelihood of an order being returned using a tuned Random Forest classifier with dynamic probability calibration and risk bucketing (`Low`, `Medium`, `High`).
+2. **Product Image Categoriser**: Employs transfer learning on a pretrained ResNet-18 backbone to classify product imagery into 10 Fashion-MNIST apparel categories with ~88.9% test accuracy.
+3. **Guardrailed LangGraph Agent**: Orchestrates multi-turn conversations, policy knowledge base retrieval (ChromaDB + `all-MiniLM-L6-v2`), tool calling, regex input-injection defenses, and distance-based groundedness verification.
+
+```mermaid
+flowchart TD
+    User["User Query / Image / Order Details"] --> Router["Intent Routing & Input Guardrail Node"]
+    Router -->|"Prompt Injection Detected"| SafetyRefusal["Safety Refusal (Source: policy_kb, Conf: 1.0)"]
+    Router -->|"Policy Inquiry"| ChromaRAG["Vector RAG Retrieval (ChromaDB + all-MiniLM-L6-v2)"]
+    Router -->|"Return Risk Inquiry"| RiskTool["Return Risk Tool (Random Forest Pipeline)"]
+    Router -->|"Image Classification"| VisionTool["Vision Tool (ResNet-18 PyTorch Head)"]
+    
+    ChromaRAG -->|"Distance <= 0.55"| Generator["Response Generation Node (MOCK_LLM / Live-LLM)"]
+    ChromaRAG -->|"Distance > 0.55"| GroundednessRefusal["Groundedness Refusal (Conf: 0.0)"]
+    RiskTool --> Generator
+    VisionTool --> Generator
+    
+    Generator --> JSONOutput["Structured JSON Response\n{answer, source, confidence}"]
+    SafetyRefusal --> JSONOutput
+    GroundednessRefusal --> JSONOutput
+```
+
+---
+
+## Repository Structure
+
+```text
+Flipkart-Order-Intelligence-Support-Assistant/
+├── README.md                               # Complete project documentation & benchmarks
+├── pyproject.toml                          # Project configuration & dependencies (uv compatible)
+├── requirements.txt                        # Standard pip dependency requirements
+├── orders_dataset.csv                      # Generated 6,000 order tabular dataset
+│
+├── models/                                 # Serialized model artifacts
+│   ├── return_risk_model.pkl               # Tuned Random Forest pipeline (Part 1)
+│   └── product_classifier.pt               # Trained ResNet-18 model state dict (Part 2)
+│
+├── data/
+│   └── sample_images/                      # Sample PNG images for image classifier testing
+│       ├── 00_ankle_boot.png
+│       ├── 01_pullover.png
+│       ├── 02_trouser.png
+│       ├── 04_shirt.png
+│       └── 06_coat.png
+│
+├── return_risk_pipeline/                   # Part 1: Tabular Return Risk Pipeline
+│   ├── generate_orders.py                  # Synthetic data generator (6,000 rows, MAR mechanism)
+│   ├── verify_data.py                      # Data validation & missingness report
+│   ├── preprocess.py                       # Leak-proof ColumnTransformer preprocessing pipeline
+│   ├── baseline.py                         # DummyClassifier & Logistic Regression threshold sweep
+│   ├── rf_tune.py                          # 5-fold Stratified GridSearchCV for Random Forest
+│   ├── rf_save.py                          # Optimal threshold calculation & model serialization
+│   ├── rf_importance.py                    # Impurity (Gini) vs Permutation feature importance
+│   └── rf_subgroups.py                     # Subgroup slice performance & root cause analysis
+│
+├── product_image_categoriser/              # Part 2: Product Image Categoriser
+│   ├── data_loader.py                      # Fashion-MNIST downloader & 48k/12k/10k stratified split
+│   ├── train.py                            # ResNet-18 feature extractor caching & classifier training
+│   ├── evaluate.py                         # Full test evaluation, confusion matrix & per-class metrics
+│   └── predict.py                          # Single-image inference module
+│
+├── support_agent/                          # Part 3: LangGraph Support Agent & Guardrails
+│   ├── generate_kb.py                      # Generates 12 policy documents, 36 chunks, eval queries
+│   ├── embed_chunks.py                     # Indexes policy chunks in ChromaDB with all-MiniLM-L6-v2
+│   ├── evaluate_retrieval.py               # Precision@3 and Recall@3 retrieval evaluation benchmark
+│   ├── graph.py                            # LangGraph state graph with MemorySaver checkpointer
+│   ├── guardrails.py                       # Input prompt injection filter & output groundedness check
+│   ├── prompts.py                          # 4S principles system prompt & strict JSON response schema
+│   ├── mock_llm.py                         # Deterministic offline MOCK_LLM response generator
+│   ├── risk_tool.py                        # check_return_risk tool wrapper
+│   ├── vision_tool.py                      # classify_product_image tool wrapper
+│   ├── run_transcripts.py                  # Runner executing all 10 verified test conversations
+│   └── kb_data/                            # Knowledge base JSON data & ChromaDB vector store
+│
+└── transcripts/                            # Recorded conversation transcripts
+    ├── README.md                           # Transcript index table
+    ├── conversation_01_policy_rag_apparel.md
+    ├── conversation_02_policy_rag_refund.md
+    ├── conversation_03_return_risk_evaluation.md
+    ├── conversation_04_product_category_vision.md
+    ├── conversation_05_multi_turn_state_carried.md
+    ├── conversation_06_fresh_conversation_state_absent.md
+    ├── conversation_07_prompt_injection_blocked.md
+    ├── conversation_08_ungrounded_policy_refusal.md
+    ├── conversation_09_multi_turn_policy_and_vision.md
+    └── conversation_10_coat_vision_and_plus_sla.md
+```
+
+---
+
+## Quickstart: Run & Reproduce All Parts (with `uv` or `pip`)
+
+All steps run locally and deterministically with **zero paid API keys required**. Python 3.10+ is supported.
+
+### 1. Environment Setup
+
+#### Option A: Using `uv` (Recommended - Ultra Fast)
 ```bash
-# 1. Clone the repository
+# Clone the repository
 git clone https://github.com/Rushikesh802/Flipkart-Order-Intelligence-Support-Assistant.git
 cd Flipkart-Order-Intelligence-Support-Assistant
 
-# 2. Install dependencies
+# Sync environment with all dependencies
+uv sync
+```
+
+#### Option B: Using standard `pip`
+```bash
+# Clone the repository
+git clone https://github.com/Rushikesh802/Flipkart-Order-Intelligence-Support-Assistant.git
+cd Flipkart-Order-Intelligence-Support-Assistant
+
+# Create and activate virtual environment
+python -m venv .venv
+# On Windows:
+.venv\Scripts\activate
+# On Linux/macOS:
+source .venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
-# Alternatively, using uv or pip editable install:
-# uv sync  OR  pip install -e .
 ```
 
-### Part 1: Tabular Return Risk Pipeline (Data, Baseline & Models)
-To regenerate the synthetic order dataset, verify data statistics, train & tune Logistic Regression / Random Forest models, and export the model artifact:
-```bash
-# Generate synthetic dataset (6,000 orders)
-python return_risk_pipeline/generate_orders.py
+---
 
-# Verify missingness, summary metrics, and category stats
-python return_risk_pipeline/verify_data.py
+### Part 1: Tabular Return Risk Pipeline Commands
 
-# Run baseline and logistic regression with threshold sweep
-python return_risk_pipeline/baseline.py
+Execute all data generation, validation, baseline, model tuning, and subgroup analyses:
 
-# Tune Random Forest with GridSearchCV & evaluate on test set
-python return_risk_pipeline/rf_tune.py
+| Step | Command (`uv`) | Command (`python`) | Description |
+|---|---|---|---|
+| **1. Data Generation** | `uv run python return_risk_pipeline/generate_orders.py` | `python return_risk_pipeline/generate_orders.py` | Generates 6,000 synthetic e-commerce orders with MAR missingness |
+| **2. Verification** | `uv run python return_risk_pipeline/verify_data.py` | `python return_risk_pipeline/verify_data.py` | Validates missingness rates, return rates, and category statistics |
+| **3. Baseline & Logistic** | `uv run python return_risk_pipeline/baseline.py` | `python return_risk_pipeline/baseline.py` | Evaluates DummyClassifier and Logistic Regression threshold sweep |
+| **4. Random Forest Tuning**| `uv run python return_risk_pipeline/rf_tune.py` | `python return_risk_pipeline/rf_tune.py` | Runs 5-fold Stratified GridSearchCV over tree hyperparameters |
+| **5. Model Serialization** | `uv run python return_risk_pipeline/rf_save.py` | `python return_risk_pipeline/rf_save.py` | Computes $t^*_{\text{rf}}=0.44$ and saves `models/return_risk_model.pkl` |
+| **6. Feature Importance**  | `uv run python return_risk_pipeline/rf_importance.py` | `python return_risk_pipeline/rf_importance.py` | Compares Gini impurity vs test-set Permutation Importance |
+| **7. Subgroup Analysis**   | `uv run python return_risk_pipeline/rf_subgroups.py` | `python return_risk_pipeline/rf_subgroups.py` | Evaluates precision & recall slices across payment methods & categories |
 
-# Train and save the tuned Random Forest model (saves models/return_risk_model.pkl)
-python return_risk_pipeline/rf_save.py
-```
+---
 
-### Part 2: Product Image Categoriser (Fashion-MNIST & ResNet-18 Transfer Learning)
-To download Fashion-MNIST programmatically, extract ResNet-18 backbone features, train the classification head, evaluate test accuracy (~88.9%), and export the model artifact:
-```bash
-# Train feature-extractor + custom classification head; saves models/product_classifier.pt
-python product_image_categoriser/train_vision_model.py
-```
+### Part 2: Product Image Categoriser Commands
 
-### Part 3: LangGraph Support Agent & Guardrails Evaluation (Mock Mode by Default)
-The agent operates in a deterministic `MOCK_LLM` mode out of the box (requiring zero API keys or network access).
-```bash
-# 1. Build policy documents (12 docs) and embed chunks in ChromaDB with all-MiniLM-L6-v2 embeddings
-python support_agent/generate_kb.py
-python support_agent/embed_chunks.py
+Download Fashion-MNIST programmatically, extract ResNet-18 backbone features, train the classification head, evaluate test accuracy (~88.9%), and perform inference:
 
-# 2. Run retrieval benchmark (Precision@3 and Recall@3 evaluation)
-python support_agent/evaluate_retrieval.py
+| Step | Command (`uv`) | Command (`python`) | Description |
+|---|---|---|---|
+| **1. Verify Splits** | `uv run python product_image_categoriser/data_loader.py` | `python product_image_categoriser/data_loader.py` | Downloads Fashion-MNIST & builds 48k/12k/10k stratified splits |
+| **2. Train Model** | `uv run python product_image_categoriser/train.py` | `python product_image_categoriser/train.py` | Caches ResNet-18 features, trains head, saves `models/product_classifier.pt` |
+| **3. Test Evaluation** | `uv run python product_image_categoriser/evaluate.py` | `python product_image_categoriser/evaluate.py` | Computes 88.87% test accuracy, 10x10 confusion matrix, per-class F1 |
+| **4. Predict Image** | `uv run python product_image_categoriser/predict.py` | `python product_image_categoriser/predict.py` | Demonstrates single image inference and class confidence |
 
-# 3. Run and verify all 10 agent test conversations (saved to transcripts/)
-python support_agent/run_transcripts.py
-```
+> [!NOTE]
+> **Command Correction Note**: In earlier drafts, the training script was mistakenly referenced as `train_vision_model.py`. The actual file is [`product_image_categoriser/train.py`](file:///C:/Users/RUSHIKESH/Desktop/Journey%20To%20AI/Masai%20Projects/Capstone/product_image_categoriser/train.py).
+
+---
+
+### Part 3: LangGraph Support Agent & Guardrails Commands
+
+Build the vector knowledge base, evaluate RAG retrieval, run guardrail unit tests, and record all 10 verified test conversation transcripts:
+
+| Step | Command (`uv`) | Command (`python`) | Description |
+|---|---|---|---|
+| **1. Build Policy KB** | `uv run python support_agent/generate_kb.py` | `python support_agent/generate_kb.py` | Generates 12 policy documents, 36 chunks, and evaluation queries |
+| **2. Vector Embedding** | `uv run python support_agent/embed_chunks.py` | `python support_agent/embed_chunks.py` | Indexes chunks into ChromaDB with `all-MiniLM-L6-v2` embeddings |
+| **3. RAG Benchmark** | `uv run python support_agent/evaluate_retrieval.py` | `python support_agent/evaluate_retrieval.py` | Evaluates Mean Precision@3 (73.33%) and Mean Recall@3 (100.00%) |
+| **4. Guardrails Test** | `uv run python support_agent/guardrails.py` | `python support_agent/guardrails.py` | Executes input prompt-injection & output groundedness unit tests |
+| **5. Run Transcripts** | `uv run python support_agent/run_transcripts.py` | `python support_agent/run_transcripts.py` | Executes all 10 agent test conversations (saved to `transcripts/`) |
+| **6. LangGraph Multi-Turn**| `uv run python support_agent/graph.py` | `python support_agent/graph.py` | Runs end-to-end multi-turn and fresh thread memory validation |
 
 ---
 
@@ -309,14 +458,17 @@ While not as drastic as the payment methods, the `Electronics` category performs
 ### Python Snippet to Load and Predict
 ```python
 import torch
+import torchvision.models as models
 import torchvision.transforms as transforms
 from PIL import Image
 
-# 1. Load model artifact
-model = torch.load("models/product_classifier.pt", map_location=torch.device("cpu"), weights_only=False)
+# 1. Load model architecture & weights
+model = models.resnet18(weights=None)
+model.fc = torch.nn.Linear(model.fc.in_features, 10)
+model.load_state_dict(torch.load("models/product_classifier.pt", map_location="cpu"))
 model.eval()
 
-# 2. Transform input image
+# 2. Preprocess input image
 transform = transforms.Compose([
     transforms.Grayscale(num_output_channels=3),
     transforms.Resize((224, 224)),
@@ -327,10 +479,15 @@ img = Image.open("data/sample_images/00_ankle_boot.png")
 tensor = transform(img).unsqueeze(0)
 
 # 3. Predict class & confidence
+classes = ['T-shirt/top', 'Trouser', 'Pullover', 'Dress', 'Coat', 
+           'Sandal', 'Shirt', 'Sneaker', 'Bag', 'Ankle boot']
+
 with torch.no_grad():
     outputs = model(tensor)
-    probs = torch.softmax(outputs, dim=1)
-    conf, pred = torch.max(probs, dim=1)
+    probs = torch.softmax(outputs, dim=1)[0]
+    conf, pred_idx = torch.max(probs, dim=0)
+
+print(f"Predicted Category: {classes[pred_idx.item()]} (Confidence: {conf.item():.2%})")
 ```
 
 ### Training Summary
@@ -479,4 +636,4 @@ Evaluated across the 5 standard query/relevant-document pairs indexed in ChromaD
   $$\text{Mean Recall@3} = \frac{1.0000 + 1.0000 + 1.0000 + 1.0000 + 1.0000}{5} = \frac{5.0000}{5} = \mathbf{1.0000} \quad (100.00\%)$$
 
 ---
-*Transcripts and evaluation generated via `python support_agent/run_transcripts.py` and `python support_agent/evaluate_retrieval.py`.*
+*Transcripts and evaluation generated via `uv run python support_agent/run_transcripts.py` (or `python support_agent/run_transcripts.py`) and `uv run python support_agent/evaluate_retrieval.py` (or `python support_agent/evaluate_retrieval.py`).*

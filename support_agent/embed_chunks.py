@@ -4,7 +4,7 @@ import chromadb
 from chromadb.utils import embedding_functions
 
 # Load chunks
-kb_data_dir = r"C:\Users\RUSHIKESH\Desktop\Journey To AI\Masai Projects\Capstone\support_agent\kb_data"
+kb_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kb_data")
 chunks_path = os.path.join(kb_data_dir, "chunks.json")
 
 with open(chunks_path, "r") as f:

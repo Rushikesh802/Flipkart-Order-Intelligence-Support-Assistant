@@ -169,5 +169,27 @@ def main():
     torch.save(classifier_head.state_dict(), "classifier_head.pth")
     print("\nSaved classifier head weights to classifier_head.pth")
 
+    # Assemble and save the full model state dict to models/product_classifier.pt
+    import os
+    models_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "models")
+    os.makedirs(models_dir, exist_ok=True)
+    model_save_path = os.path.join(models_dir, "product_classifier.pt")
+
+    try:
+        full_model = models.resnet18(weights=None)
+    except AttributeError:
+        full_model = models.resnet18(pretrained=False)
+    full_model.fc = nn.Linear(num_features, 10)
+    full_sd = backbone.state_dict()
+    full_model_sd = full_model.state_dict()
+    for k in full_sd:
+        if k in full_model_sd and not k.startswith("fc."):
+            full_model_sd[k] = full_sd[k]
+    full_model_sd["fc.weight"] = classifier_head.weight.data.cpu()
+    full_model_sd["fc.bias"] = classifier_head.bias.data.cpu()
+    full_model.load_state_dict(full_model_sd)
+    torch.save(full_model.state_dict(), model_save_path)
+    print(f"Saved full model artifact to {model_save_path}")
+
 if __name__ == '__main__':
     main()

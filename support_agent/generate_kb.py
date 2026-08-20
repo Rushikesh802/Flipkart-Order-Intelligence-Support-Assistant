@@ -106,7 +106,7 @@ queries = [
     }
 ]
 
-output_dir = r"C:\Users\RUSHIKESH\Desktop\Journey To AI\Masai Projects\Capstone\support_agent\kb_data"
+output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kb_data")
 os.makedirs(output_dir, exist_ok=True)
 
 with open(os.path.join(output_dir, "documents.json"), "w") as f:
