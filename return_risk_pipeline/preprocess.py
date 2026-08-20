@@ -6,7 +6,10 @@ from sklearn.impute import SimpleImputer
 from sklearn.pipeline import Pipeline
 from sklearn.preprocessing import OneHotEncoder, StandardScaler
 
-DATA_PATH = os.path.join(os.path.dirname(os.path.abspath(__file__)), "orders_dataset.csv")
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+DATA_PATH = os.path.join(ROOT_DIR, "data", "orders_dataset.csv")
+if not os.path.exists(DATA_PATH):
+    DATA_PATH = os.path.join(ROOT_DIR, "orders_dataset.csv")
 TARGET = "returned"
 
 NUMERIC = [

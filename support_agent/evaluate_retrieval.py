@@ -3,7 +3,8 @@ import os
 import chromadb
 from chromadb.utils import embedding_functions
 
-kb_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kb_data")
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+kb_data_dir = os.path.join(ROOT_DIR, "data", "knowledge_base")
 client = chromadb.PersistentClient(path=os.path.join(kb_data_dir, "chroma_db"))
 ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")
 col = client.get_collection(name="policy_knowledge_base", embedding_function=ef)

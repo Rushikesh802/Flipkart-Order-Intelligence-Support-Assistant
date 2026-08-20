@@ -52,5 +52,14 @@ df = pd.DataFrame({
     "delivery_distance_km": delivery_distance_km, "delivery_days": delivery_days.astype(int),
     "is_weekend_order": is_weekend_order, "rating_given": rating_given, "returned": returned,
 })
-df.to_csv("orders_dataset.csv", index=False)
-print("Rows:", len(df), "| Return rate:", round(df["returned"].mean(), 4))
+import os
+
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+DATA_DIR = os.path.join(ROOT_DIR, "data")
+os.makedirs(DATA_DIR, exist_ok=True)
+out_path = os.path.join(DATA_DIR, "orders_dataset.csv")
+df.to_csv(out_path, index=False)
+# Also save root copy for quick reference
+df.to_csv(os.path.join(ROOT_DIR, "orders_dataset.csv"), index=False)
+print(f"Dataset generated ({len(df)} rows) | Return rate: {round(df['returned'].mean(), 4)} | Saved to {out_path}")
+

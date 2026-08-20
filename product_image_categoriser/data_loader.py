@@ -6,9 +6,9 @@ from sklearn.model_selection import train_test_split
 import numpy as np
 import os
 
-# Get the directory where data_loader.py is located
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DEFAULT_DATA_DIR = os.path.join(BASE_DIR, 'data')
+# Get the root directory of the project
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..'))
+DEFAULT_DATA_DIR = os.path.join(ROOT_DIR, 'data', 'fashion_mnist')
 
 def get_dataloaders(data_dir=DEFAULT_DATA_DIR, batch_size=64, val_size=5000, random_seed=42):
     """

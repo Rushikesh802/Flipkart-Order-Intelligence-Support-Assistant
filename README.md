@@ -70,19 +70,30 @@ Flipkart-Order-Intelligence-Support-Assistant/
 ├── README.md                               # Complete project documentation & benchmarks
 ├── pyproject.toml                          # Project configuration & dependencies (uv compatible)
 ├── requirements.txt                        # Standard pip dependency requirements
-├── orders_dataset.csv                      # Generated 6,000 order tabular dataset
+│
+├── data/                                   # Centralized data repository across all pipelines
+│   ├── orders_dataset.csv                  # Generated 6,000 order tabular dataset (Part 1)
+│   ├── fashion_mnist/                      # Fashion-MNIST raw/processed dataset (Part 2)
+│   │   └── FashionMNIST/raw/
+│   ├── sample_images/                      # Sample test PNG images for vision classifier (Part 2 & 3)
+│   │   ├── 00_ankle_boot.png
+│   │   ├── 01_pullover.png
+│   │   ├── 02_trouser.png
+│   │   ├── 04_shirt.png
+│   │   └── 06_coat.png
+│   └── knowledge_base/                     # Centralized Policy KB & Vector Store (Part 3)
+│       ├── documents.json                  # 12 official policy documents
+│       ├── chunks.json                     # 36 chunked text segments
+│       ├── queries_eval.json               # 5 ground-truth evaluation queries
+│       └── chroma_db/                      # Persistent ChromaDB vector database index
+│
+├── assets/                                 # Visual evaluation charts and graphs
+│   ├── threshold_sweep.png                 # Logistic regression threshold sweep plot
+│   └── confusion_matrix.png                # ResNet-18 10x10 confusion matrix heatmap
 │
 ├── models/                                 # Serialized model artifacts
 │   ├── return_risk_model.pkl               # Tuned Random Forest pipeline (Part 1)
 │   └── product_classifier.pt               # Trained ResNet-18 model state dict (Part 2)
-│
-├── data/
-│   └── sample_images/                      # Sample PNG images for image classifier testing
-│       ├── 00_ankle_boot.png
-│       ├── 01_pullover.png
-│       ├── 02_trouser.png
-│       ├── 04_shirt.png
-│       └── 06_coat.png
 │
 ├── return_risk_pipeline/                   # Part 1: Tabular Return Risk Pipeline
 │   ├── generate_orders.py                  # Synthetic data generator (6,000 rows, MAR mechanism)
@@ -110,8 +121,10 @@ Flipkart-Order-Intelligence-Support-Assistant/
 │   ├── mock_llm.py                         # Deterministic offline MOCK_LLM response generator
 │   ├── risk_tool.py                        # check_return_risk tool wrapper
 │   ├── vision_tool.py                      # classify_product_image tool wrapper
-│   ├── run_transcripts.py                  # Runner executing all 10 verified test conversations
-│   └── kb_data/                            # Knowledge base JSON data & ChromaDB vector store
+│   └── run_transcripts.py                  # Runner executing all 10 verified test conversations
+│
+├── scripts/                                # Utility scripts
+│   └── generate_plots.py                   # Standalone visual plot generation script
 │
 └── transcripts/                            # Recorded conversation transcripts
     ├── README.md                           # Transcript index table
@@ -500,26 +513,11 @@ print(f"Predicted Category: {classes[pred_idx.item()]} (Confidence: {conf.item()
 
 **Final Test Accuracy**: 88.87%
 
-#### 10x10 Confusion Matrix Heatmap
+#### 10x10 Confusion Matrix
 
 ![Fashion-MNIST ResNet-18 Confusion Matrix](./assets/confusion_matrix.png)
 
 *Figure: Annotated confusion matrix heatmap for Fashion-MNIST ResNet-18 test evaluation (10,000 test samples, overall accuracy: 88.87%).*
-
-#### Confusion Matrix Table (Actual vs Predicted)
-
-| Actual \ Predicted | T-shirt/top | Trouser | Pullover | Dress | Coat | Sandal | Shirt | Sneaker | Bag | Ankle boot | Total Support |
-|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
-| **T-shirt/top** | **857** | 6 | 14 | 18 | 1 | 2 | 95 | 0 | 6 | 1 | 1,000 |
-| **Trouser** | 3 | **973** | 2 | 17 | 1 | 1 | 3 | 0 | 0 | 0 | 1,000 |
-| **Pullover** | 14 | 0 | **847** | 6 | 53 | 0 | 79 | 0 | 1 | 0 | 1,000 |
-| **Dress** | 28 | 7 | 17 | **853** | 28 | 1 | 65 | 0 | 1 | 0 | 1,000 |
-| **Coat** | 1 | 0 | 61 | 26 | **784** | 0 | 125 | 0 | 3 | 0 | 1,000 |
-| **Sandal** | 0 | 0 | 0 | 0 | 0 | **979** | 0 | 15 | 1 | 5 | 1,000 |
-| **Shirt** | 127 | 0 | 39 | 26 | 67 | 1 | **733** | 0 | 6 | 1 | 1,000 |
-| **Sneaker** | 0 | 0 | 0 | 0 | 0 | 39 | 0 | **931** | 1 | 29 | 1,000 |
-| **Bag** | 4 | 0 | 0 | 2 | 0 | 4 | 10 | 0 | **979** | 1 | 1,000 |
-| **Ankle boot** | 0 | 0 | 0 | 0 | 1 | 14 | 0 | 33 | 1 | **951** | 1,000 |
 
 
 #### Per-class Precision & Recall

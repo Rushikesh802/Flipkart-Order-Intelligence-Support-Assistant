@@ -106,7 +106,8 @@ queries = [
     }
 ]
 
-output_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kb_data")
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+output_dir = os.path.join(ROOT_DIR, "data", "knowledge_base")
 os.makedirs(output_dir, exist_ok=True)
 
 with open(os.path.join(output_dir, "documents.json"), "w") as f:
@@ -118,4 +119,5 @@ with open(os.path.join(output_dir, "chunks.json"), "w") as f:
 with open(os.path.join(output_dir, "queries_eval.json"), "w") as f:
     json.dump(queries, f, indent=4)
 
-print("Knowledge base created successfully in kb_data/")
+print(f"Knowledge base created successfully in {output_dir}")
+

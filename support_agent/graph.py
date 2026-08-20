@@ -20,7 +20,7 @@ import chromadb
 from chromadb.utils import embedding_functions
 
 # Connect to ChromaDB
-kb_data_dir = os.path.join(ROOT_DIR, "support_agent", "kb_data")
+kb_data_dir = os.path.join(ROOT_DIR, "data", "knowledge_base")
 db_dir = os.path.join(kb_data_dir, "chroma_db")
 client = chromadb.PersistentClient(path=db_dir)
 sentence_transformer_ef = embedding_functions.SentenceTransformerEmbeddingFunction(model_name="all-MiniLM-L6-v2")

@@ -1,8 +1,15 @@
 import pandas as pd
 import numpy as np
 
+import os
+
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+data_path = os.path.join(ROOT_DIR, "data", "orders_dataset.csv")
+if not os.path.exists(data_path):
+    data_path = os.path.join(ROOT_DIR, "orders_dataset.csv")
+
 # Load the dataset
-df = pd.read_csv('orders_dataset.csv')
+df = pd.read_csv(data_path)
 
 print('='*70)
 print("DATA VERIFICATION REPORT")

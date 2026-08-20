@@ -4,7 +4,8 @@ import chromadb
 from chromadb.utils import embedding_functions
 
 # Load chunks
-kb_data_dir = os.path.join(os.path.dirname(os.path.abspath(__file__)), "kb_data")
+ROOT_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), ".."))
+kb_data_dir = os.path.join(ROOT_DIR, "data", "knowledge_base")
 chunks_path = os.path.join(kb_data_dir, "chunks.json")
 
 with open(chunks_path, "r") as f:
