@@ -1,0 +1,96 @@
+# ==========================================
+# Byte-compiled / optimized / DLL files
+# ==========================================
+__pycache__/
+*.py[cod]
+*.class
+*.so
+
+# ==========================================
+# Virtual Environments
+# ==========================================
+.venv/
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+
+# ==========================================
+# Environment Variables & Secrets
+# ==========================================
+.env
+.env.local
+.env.*.local
+*.env
+
+# ==========================================
+# Distribution / Packaging / Builds
+# ==========================================
+build/
+dist/
+develop-eggs/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# ==========================================
+# PyTorch / Checkpoints / Temporary Weights
+# ==========================================
+*.pth
+*.tmp
+# Note: Keep checked-in models/product_classifier.pt and models/return_risk_model.pkl
+!models/product_classifier.pt
+!models/return_risk_model.pkl
+
+# ==========================================
+# Jupyter & Interactive Notebooks
+# ==========================================
+.ipynb_checkpoints
+*/.ipynb_checkpoints/*
+
+# ==========================================
+# IDEs, Editors & Tooling
+# ==========================================
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+.directory
+
+# ==========================================
+# OS-Specific Files
+# ==========================================
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+desktop.ini
+$RECYCLE.BIN/
+
+# ==========================================
+# Raw Downloaded Archives (regenerable via data_loader)
+# ==========================================
+data/fashion_mnist/FashionMNIST/raw/*.gz
+data/fashion_mnist/FashionMNIST/raw/*-ubyte
+!data/fashion_mnist/.gitkeep
+
+# ==========================================
+# ChromaDB Vector Store Logs & Locks
+# ==========================================
+*.sqlite3-journal
+*.log
