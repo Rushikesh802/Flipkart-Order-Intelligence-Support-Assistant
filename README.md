@@ -177,6 +177,7 @@ Execute all data generation, validation, baseline, model tuning, and subgroup an
 | **5. Model Serialization** | `uv run python return_risk_pipeline/rf_save.py` | `python return_risk_pipeline/rf_save.py` | Computes $t^*_{\text{rf}}=0.44$ and saves `models/return_risk_model.pkl` |
 | **6. Feature Importance**  | `uv run python return_risk_pipeline/rf_importance.py` | `python return_risk_pipeline/rf_importance.py` | Compares Gini impurity vs test-set Permutation Importance |
 | **7. Subgroup Analysis**   | `uv run python return_risk_pipeline/rf_subgroups.py` | `python return_risk_pipeline/rf_subgroups.py` | Evaluates precision & recall slices across payment methods & categories |
+| **8. Generate Charts**     | `uv run python scripts/generate_plots.py` | `python scripts/generate_plots.py` | Generates high-res visual plots for threshold curves & confusion matrix |
 
 ---
 
@@ -284,69 +285,64 @@ The DummyClassifier simply predicts the majority class ("no return") for every o
 - Precision: 0.3149  
 - ROC-AUC: 0.6404  
 
-**Threshold sweep (0.10 → 0.90, step 0.02)**  
-Full F1 / precision / recall vs threshold:  
-```
-threshold	F1	precision	recall
-0.10		0.3751	0.2308		1.0000
-0.12		0.3751	0.2308		1.0000
-0.14		0.3751	0.2308		1.0000
-0.16		0.3751	0.2308		1.0000
-0.18		0.3751	0.2308		1.0000
-0.20		0.3751	0.2308		1.0000
-0.22		0.3751	0.2308		1.0000
-0.24		0.3756	0.2312		1.0000
-0.26		0.3755	0.2313		0.9964
-0.28		0.3788	0.2340		0.9928
-0.30		0.3824	0.2379		0.9747
-0.32		0.3885	0.2442		0.9495
-0.34		0.3885	0.2475		0.9025
-0.36		0.3984	0.2571		0.8845
-0.38		0.4020	0.2614		0.8700
-0.40		0.4045	0.2659		0.8448
-0.42		0.4007	0.2680		0.7942
-0.44		0.4020	0.2754		0.7437
-0.46		0.4051	0.2868		0.6895
-0.48		0.4083	0.2992		0.6426
-0.50		0.4120	0.3149		0.5957
-0.52		0.4206	0.3424		0.5451
-0.54		0.4080	0.3547		0.4801
-0.56		0.3953	0.3662		0.4296
-0.58		0.3858	0.3785		0.3935
-0.60		0.3715	0.3867		0.3574
-0.62		0.3320	0.3779		0.2960
-0.64		0.2661	0.3648		0.2094
-0.66		0.2365	0.4107		0.1661
-0.68		0.1667	0.4746		0.1011
-0.70		0.1161	0.5455		0.0650
-0.72		0.0667	0.4348		0.0361
-0.74		0.0275	0.2857		0.0144
-0.76		0.0210	0.3333		0.0108
-0.78		0.0214	0.7500		0.0108
-0.80		0.0072	0.5000		0.0036
-0.82		0.0000	0.0000		0.0000
-0.84		0.0000	0.0000		0.0000
-0.86		0.0000	0.0000		0.0000
-0.88		0.0000	0.0000		0.0000
-0.90		0.0000	0.0000		0.0000
-```
+### Threshold Sweep Curve & Trade-off Visualization
 
-**Threshold Sweep Analysis & Chosen Threshold Selection**:
-- **Default Baseline Threshold ($t = 0.50$)**:
-  - **Recall**: `0.5957` (59.57%)
-  - **Precision**: `0.3149` (31.49%)
-  - **F1-Score**: `0.4120`
-  - **ROC-AUC**: `0.6404`
+![Logistic Regression Threshold Sweep Curve](./assets/threshold_sweep.png)
 
-- **Chosen High-Recall Operating Threshold ($t = 0.40$)**:
-  - **Recall**: `0.8448` (84.48%) &rarr; **+24.91 percentage points higher** than the default 0.50 threshold (well exceeding the required $\ge 15$ percentage points improvement).
-  - **Precision**: `0.2659` (26.59%) &rarr; drops by **-4.90 percentage points** compared to default (from 0.3149 to 0.2659).
-  - **F1-Score**: `0.4045` (retains strong discriminative utility while maximizing return capture).
+*Figure: Precision, Recall, and F1-Score trade-off curve across decision thresholds from $0.10$ to $0.90$ with highlights on the High-Recall Operating Threshold ($t=0.40$), Default Baseline ($t=0.50$), and Peak F1 Threshold ($t^*=0.52$).*
 
-- **F1-Maximising Mathematical Threshold ($t^* = 0.52$)**:
-  - **F1-Score**: `0.4206` (peak mathematical F1)
-  - **Precision**: `0.3424` (34.24%)
-  - **Recall**: `0.5451` (54.51%)
+#### Key Operating Thresholds Comparison
+
+| Threshold Scenario | Threshold ($t$) | Recall | Precision | F1-Score | Operational Impact / Trade-off |
+|---|:---:|:---:|:---:|:---:|---|
+| **Chosen High-Recall Operating** | **$t = 0.40$** | **84.48%** | **26.59%** | **0.4045** | **+24.91 pp Recall boost** ($\ge 15$ pp required gain) with minimal precision drop (-4.90 pp). Captures ~85% of all returns. |
+| **Default Baseline** | $t = 0.50$ | 59.57% | 31.49% | 0.4120 | Standard $0.50$ decision boundary; misses $>40\%$ of returning orders. |
+| **Mathematical F1 Peak** | $t^* = 0.52$ | 54.51% | 34.24% | 0.4206 | Peak mathematical F1 harmonic balance. |
+
+<details>
+<summary><strong>Click to expand full 41-step Threshold Sweep Table (0.10 → 0.90)</strong></summary>
+
+| Threshold | F1-Score | Precision | Recall |
+|:---:|:---:|:---:|:---:|
+| 0.10 | 0.3751 | 0.2308 | 1.0000 |
+| 0.12 | 0.3751 | 0.2308 | 1.0000 |
+| 0.14 | 0.3751 | 0.2308 | 1.0000 |
+| 0.16 | 0.3751 | 0.2308 | 1.0000 |
+| 0.18 | 0.3751 | 0.2308 | 1.0000 |
+| 0.20 | 0.3751 | 0.2308 | 1.0000 |
+| 0.22 | 0.3751 | 0.2308 | 1.0000 |
+| 0.24 | 0.3756 | 0.2312 | 1.0000 |
+| 0.26 | 0.3755 | 0.2313 | 0.9964 |
+| 0.28 | 0.3788 | 0.2340 | 0.9928 |
+| 0.30 | 0.3824 | 0.2379 | 0.9747 |
+| 0.32 | 0.3885 | 0.2442 | 0.9495 |
+| 0.34 | 0.3885 | 0.2475 | 0.9025 |
+| 0.36 | 0.3984 | 0.2571 | 0.8845 |
+| 0.38 | 0.4020 | 0.2614 | 0.8700 |
+| **0.40** | **0.4045** | **0.2659** | **0.8448** |
+| 0.42 | 0.4007 | 0.2680 | 0.7942 |
+| 0.44 | 0.4020 | 0.2754 | 0.7437 |
+| 0.46 | 0.4051 | 0.2868 | 0.6895 |
+| 0.48 | 0.4083 | 0.2992 | 0.6426 |
+| **0.50** | **0.4120** | **0.3149** | **0.5957** |
+| **0.52** | **0.4206** | **0.3424** | **0.5451** |
+| 0.54 | 0.4080 | 0.3547 | 0.4801 |
+| 0.56 | 0.3953 | 0.3662 | 0.4296 |
+| 0.58 | 0.3858 | 0.3785 | 0.3935 |
+| 0.60 | 0.3715 | 0.3867 | 0.3574 |
+| 0.62 | 0.3320 | 0.3779 | 0.2960 |
+| 0.64 | 0.2661 | 0.3648 | 0.2094 |
+| 0.66 | 0.2365 | 0.4107 | 0.1661 |
+| 0.68 | 0.1667 | 0.4746 | 0.1011 |
+| 0.70 | 0.1161 | 0.5455 | 0.0650 |
+| 0.72 | 0.0667 | 0.4348 | 0.0361 |
+| 0.74 | 0.0275 | 0.2857 | 0.0144 |
+| 0.76 | 0.0210 | 0.3333 | 0.0108 |
+| 0.78 | 0.0214 | 0.7500 | 0.0108 |
+| 0.80 | 0.0072 | 0.5000 | 0.0036 |
+| 0.82–0.90 | 0.0000 | 0.0000 | 0.0000 |
+
+</details>
 
 **Business Trade-off of the Chosen Operating Threshold ($t = 0.40$):**  
 Operating at the chosen threshold of $t = 0.40$ rather than default $0.50$ dramatically boosts recall from 59.57% to 84.48% (+24.91 pp), capturing nearly 85% of all returning orders. The trade-off is a minor precision reduction of 4.90 percentage points (more false alarms). In an e-commerce order intelligence context, the financial and logistical costs of unexpected returns (restocking, reverse shipping, damaged returns) vastly outweigh the small operational overhead of proactively flagging and inspecting high-risk orders.
@@ -504,20 +500,27 @@ print(f"Predicted Category: {classes[pred_idx.item()]} (Confidence: {conf.item()
 
 **Final Test Accuracy**: 88.87%
 
-#### 10x10 Confusion Matrix
+#### 10x10 Confusion Matrix Heatmap
 
-```text
-[[857   6  14  18   1   2  95   0   6   1]
- [  3 973   2  17   1   1   3   0   0   0]
- [ 14   0 847   6  53   0  79   0   1   0]
- [ 28   7  17 853  28   1  65   0   1   0]
- [  1   0  61  26 784   0 125   0   3   0]
- [  0   0   0   0   0 979   0  15   1   5]
- [127   0  39  26  67   1 733   0   6   1]
- [  0   0   0   0   0  39   0 931   1  29]
- [  4   0   0   2   0   4  10   0 979   1]
- [  0   0   0   0   1  14   0  33   1 951]]
-```
+![Fashion-MNIST ResNet-18 Confusion Matrix](./assets/confusion_matrix.png)
+
+*Figure: Annotated confusion matrix heatmap for Fashion-MNIST ResNet-18 test evaluation (10,000 test samples, overall accuracy: 88.87%).*
+
+#### Confusion Matrix Table (Actual vs Predicted)
+
+| Actual \ Predicted | T-shirt/top | Trouser | Pullover | Dress | Coat | Sandal | Shirt | Sneaker | Bag | Ankle boot | Total Support |
+|:---|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|:---:|
+| **T-shirt/top** | **857** | 6 | 14 | 18 | 1 | 2 | 95 | 0 | 6 | 1 | 1,000 |
+| **Trouser** | 3 | **973** | 2 | 17 | 1 | 1 | 3 | 0 | 0 | 0 | 1,000 |
+| **Pullover** | 14 | 0 | **847** | 6 | 53 | 0 | 79 | 0 | 1 | 0 | 1,000 |
+| **Dress** | 28 | 7 | 17 | **853** | 28 | 1 | 65 | 0 | 1 | 0 | 1,000 |
+| **Coat** | 1 | 0 | 61 | 26 | **784** | 0 | 125 | 0 | 3 | 0 | 1,000 |
+| **Sandal** | 0 | 0 | 0 | 0 | 0 | **979** | 0 | 15 | 1 | 5 | 1,000 |
+| **Shirt** | 127 | 0 | 39 | 26 | 67 | 1 | **733** | 0 | 6 | 1 | 1,000 |
+| **Sneaker** | 0 | 0 | 0 | 0 | 0 | 39 | 0 | **931** | 1 | 29 | 1,000 |
+| **Bag** | 4 | 0 | 0 | 2 | 0 | 4 | 10 | 0 | **979** | 1 | 1,000 |
+| **Ankle boot** | 0 | 0 | 0 | 0 | 1 | 14 | 0 | 33 | 1 | **951** | 1,000 |
+
 
 #### Per-class Precision & Recall
 
